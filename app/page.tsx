@@ -34,8 +34,8 @@ export default function Home() {
           setMatches(data.matches);
           // Auto-select all leagues on first load
           if (selectedLeagues.length === 0) {
-            const leagues = [...new Set(data.matches.map((m: any) => m.league))];
-            setSelectedLeagues(leagues);
+            const leagues = [...new Set(data.matches.map((m: any) => m.league))] as string[];
+setSelectedLeagues(leagues);
           }
         } else {
           throw new Error(data.error || 'Failed to fetch matches');

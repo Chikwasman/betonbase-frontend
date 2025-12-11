@@ -12,6 +12,7 @@ interface WaitingBet {
   status: number;
   matchedBetId: bigint;
   createdAt: bigint;
+  usdValue?: bigint; // ← Change from string to bigint
 }
 
 export function useWaitingBets(matchId: number) {
