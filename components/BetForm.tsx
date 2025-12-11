@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { parseUnits } from 'viem';
+import { parseEther } from 'viem';
 import { useCreateBet } from '@/hooks/useCreateBet';
 import { Prediction, TokenType, TOKEN_INFO } from '@/lib/contracts';
 import { TrendingUp, AlertCircle } from 'lucide-react';
@@ -19,7 +19,7 @@ interface BetFormProps {
 export function BetForm({ matchId, match }: BetFormProps) {
   const { address, isConnected } = useAccount();
   const [prediction, setPrediction] = useState<Prediction>(Prediction.HOME);
-  const tokenType = TokenType.USDC; // Fixed to USDC only
+  const tokenType = TokenType.ZKLEGEND; // Fixed to ZKL only
   const [stake, setStake] = useState('');
   const [allowDraw, setAllowDraw] = useState(false);
 
@@ -34,8 +34,8 @@ export function BetForm({ matchId, match }: BetFormProps) {
     }
 
     try {
-      // USDC has 6 decimals
-      const stakeAmount = parseUnits(stake, 6);
+      // ZKL has 18 decimals (like ETH)
+      const stakeAmount = parseEther(stake);
 
       await createBet({
         matchId,
@@ -118,21 +118,21 @@ export function BetForm({ matchId, match }: BetFormProps) {
         </div>
       </div>
 
-      {/* Token Display (USDC Only) */}
+      {/* Token Display (ZKL Only) */}
       <div>
         <label className="block text-sm font-medium mb-3 dark:text-white">Bet Currency</label>
-        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg">
+        <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm text-gray-600 dark:text-gray-400">You're betting with</div>
-              <div className="text-xl font-bold text-blue-900 dark:text-blue-300">
-                {TOKEN_INFO[TokenType.USDC].symbol}
+              <div className="text-xl font-bold text-purple-900 dark:text-purple-300">
+                {TOKEN_INFO[TokenType.ZKLEGEND].symbol}
               </div>
             </div>
-            <div className="text-3xl">💵</div>
+            <div className="text-3xl">🎮</div>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {TOKEN_INFO[TokenType.USDC].name}
+            {TOKEN_INFO[TokenType.ZKLEGEND].name}
           </p>
         </div>
       </div>
@@ -140,18 +140,18 @@ export function BetForm({ matchId, match }: BetFormProps) {
       {/* Stake Amount */}
       <div>
         <label className="block text-sm font-medium mb-2 dark:text-white">
-          Stake Amount (USDC)
+          Stake Amount (ZKL)
         </label>
         <input
           type="number"
           step="any"
           value={stake}
           onChange={(e) => setStake(e.target.value)}
-          placeholder="Min: 10 USDC, Max: 1,000,000 USDC"
+          placeholder="Enter amount in ZKL"
           className="w-full px-4 py-3 border dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-white"
         />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          Approximately ${stake || '0'} USD
+          Min: $10 USD equivalent • Max: $1,000,000 USD equivalent
         </p>
       </div>
 
@@ -182,7 +182,7 @@ export function BetForm({ matchId, match }: BetFormProps) {
       <button
         type="submit"
         disabled={isLoading || !stake}
-        className="w-full bg-primary text-white py-4 rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
       >
         {isLoading ? (
           <>
@@ -192,16 +192,23 @@ export function BetForm({ matchId, match }: BetFormProps) {
         ) : (
           <>
             <TrendingUp className="h-5 w-5" />
-            <span>Place Bet</span>
+            <span>Place Bet with ZKL</span>
           </>
         )}
       </button>
 
       {/* Fee Info */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
-        <p>Success fee: 2.5% on winnings</p>
-        <p>Hidden fee: 0.001 ETH per transaction</p>
-        <p>Bets close 15 minutes before match starts</p>
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1 pt-2 border-t dark:border-gray-800">
+        <p>💰 Success fee: 2.5% on winnings</p>
+        <p>⚡ Hidden fee: 0.001 ETH per transaction</p>
+        <p>🕐 Bets close 15 minutes before match starts</p>
+      </div>
+
+      {/* Testnet Notice */}
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+        <p className="text-xs text-yellow-800 dark:text-yellow-300 text-center">
+          ⚠️ Testnet Mode: Using ZKL token • Mainnet will use USDC
+        </p>
       </div>
     </form>
   );
