@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Home, ListChecks, Flame, Trophy, Sun, Moon } from 'lucide-react';
+import { Home, ListChecks, Flame, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/ThemeProvider';
 import { useState, useEffect } from 'react';
@@ -56,10 +57,19 @@ export function Navigation() {
       <nav className="border-b bg-white sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Trophy className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">BetOnBase</span>
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Image 
+                src="/images/logo.png" 
+                alt="BetOnBase365" 
+                width={40} 
+                height={40}
+                className="rounded-lg"
+                priority
+              />
+              <span className="text-xl font-bold hidden sm:inline">BetOnBase365</span>
             </Link>
+            
             <div className="hidden md:flex items-center space-x-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -92,10 +102,17 @@ export function Navigation() {
     <nav className="border-b bg-white dark:bg-gray-900 dark:border-gray-800 sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2">
-            <Trophy className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold dark:text-white">BetOnBase</span>
+          {/* Logo with Image */}
+          <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <Image 
+              src="/images/logo.png" 
+              alt="BetOnBase365" 
+              width={40} 
+              height={40}
+              className="rounded-lg"
+              priority
+            />
+            <span className="text-xl font-bold dark:text-white hidden sm:inline">BetOnBase365</span>
           </Link>
 
           {/* Nav Links - Desktop */}
