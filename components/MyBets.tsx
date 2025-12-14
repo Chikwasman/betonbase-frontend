@@ -27,6 +27,7 @@ interface UserBet {
   matchResult?: number;
   isSettled?: boolean;
   isWinner?: boolean;
+  isClaimed?: boolean;
 }
 
 type TabType = 'all' | 'waiting' | 'matched';
@@ -150,14 +151,18 @@ export function MyBets() {
             }
           }
 
-          // Determine if user won
+          // Determine if user won (FIXED: Check both MATCHED and SETTLED status)
           const prediction = Number(result[3]);
           const betStatus = Number(result[7]);
-          const isWinner = isSettled && betStatus === BetStatus.MATCHED && (
+          const wasMatched = betStatus === BetStatus.MATCHED || betStatus === BetStatus.SETTLED;
+          const isWinner = isSettled && wasMatched && (
             (matchResult === MatchResult.HOME_WIN && prediction === Prediction.HOME) ||
             (matchResult === MatchResult.AWAY_WIN && prediction === Prediction.AWAY) ||
             (matchResult === MatchResult.DRAW && prediction === Prediction.DRAW)
           );
+          
+          // Check if winnings were claimed
+          const isClaimed = betStatus === BetStatus.SETTLED;
           
           userBets.push({
             betId,
@@ -177,6 +182,7 @@ export function MyBets() {
             matchResult,
             isSettled,
             isWinner,
+            isClaimed,
           });
         }
       }
@@ -204,43 +210,37 @@ export function MyBets() {
 
   // Handle withdraw unmatched
   const handleWithdrawUnmatched = async (betId: bigint) => {
-    if (!confirm('Withdraw this unmatched bet?')) return;
-    
     try {
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'withdrawUnmatched',
         args: [betId],
       });
-      alert('Bet withdrawn successfully!');
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Withdraw error:', error);
-      alert('Failed to withdraw: ' + (error.shortMessage || error.message || 'Unknown error'));
+      console.log('Withdrawal transaction:', hash);
+    } catch (error) {
+      console.error('Error withdrawing:', error);
     }
   };
 
   // Handle withdraw winnings
   const handleWithdrawWinnings = async (betId: bigint) => {
     try {
-      await writeContractAsync({
+      const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'withdrawWinnings',
         args: [betId],
       });
-      alert('Winnings claimed successfully!');
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Withdraw error:', error);
-      alert('Failed to claim: ' + (error.shortMessage || error.message || 'Unknown error'));
+      console.log('Winnings claimed:', hash);
+    } catch (error) {
+      console.error('Error claiming winnings:', error);
     }
   };
 
   if (!isConnected) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl p-8 shadow-sm">
+      <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border dark:border-gray-800">
         <h2 className="text-2xl font-bold mb-4 dark:text-white">My Bets</h2>
         <div className="text-center py-8">
           <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -369,7 +369,7 @@ export function MyBets() {
                     )}
                   </div>
 
-                  {/* Status Badge */}
+                  {/* Status Badge - UPDATED: Show "Claimed" for settled won bets */}
                   {bet.status === BetStatus.WAITING && (
                     <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-medium rounded-full">
                       ⏳ Waiting
@@ -380,12 +380,17 @@ export function MyBets() {
                       🤝 Matched
                     </span>
                   )}
-                  {bet.isWinner && (
+                  {bet.isWinner && !bet.isClaimed && (
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
                       🏆 Won
                     </span>
                   )}
-                  {bet.isSettled && !bet.isWinner && bet.status === BetStatus.MATCHED && (
+                  {bet.isWinner && bet.isClaimed && (
+                    <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium rounded-full">
+                      ✅ Won - Claimed
+                    </span>
+                  )}
+                  {bet.isSettled && !bet.isWinner && (
                     <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs font-medium rounded-full">
                       ❌ Lost
                     </span>
@@ -415,24 +420,26 @@ export function MyBets() {
                     {bet.status === BetStatus.WAITING && (
                       <button
                         onClick={() => handleWithdrawUnmatched(bet.betId)}
-                        className="px-3 py-1.5 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 font-medium"
+                        className="px-3 py-1.5 bg-gray-600 dark:bg-gray-700 text-white text-xs rounded hover:bg-gray-700 dark:hover:bg-gray-600 font-medium transition-colors"
                       >
                         Withdraw
                       </button>
                     )}
                     
-                    {bet.isWinner && (
+                    {/* UPDATED: Only show claim button if not claimed yet */}
+                    {bet.isWinner && !bet.isClaimed && (
                       <button
                         onClick={() => handleWithdrawWinnings(bet.betId)}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium"
+                        className="px-3 py-1.5 bg-green-600 dark:bg-green-700 text-white text-xs rounded hover:bg-green-700 dark:hover:bg-green-600 font-medium transition-colors"
                       >
                         💰 Claim Winnings
                       </button>
                     )}
                     
+                    {/* FIXED: Changed from bg-primary to bg-blue-600 for visibility in light mode */}
                     <Link
                       href={`/match/${bet.matchId}`}
-                      className="px-3 py-1.5 bg-primary text-white text-xs rounded hover:bg-primary/90 font-medium"
+                      className="px-3 py-1.5 bg-blue-600 dark:bg-blue-700 text-white text-xs rounded hover:bg-blue-700 dark:hover:bg-blue-600 font-medium transition-colors"
                     >
                       View Match
                     </Link>
