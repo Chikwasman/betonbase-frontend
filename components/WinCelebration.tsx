@@ -30,10 +30,10 @@ export function WinCelebration({ show, onComplete, amount }: WinCelebrationProps
       }));
       setConfettiPieces(pieces);
 
-      // Auto-close after 3 seconds
+      // Auto-close after 5 seconds
       const timer = setTimeout(() => {
         onComplete();
-      }, 3000);
+      }, 5000);
 
       return () => clearTimeout(timer);
     }
