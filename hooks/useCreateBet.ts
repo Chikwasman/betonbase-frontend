@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI, ERC20_ABI, Prediction, TokenType, TOKEN_INFO } from '@/lib/contracts';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { CONTRACTS, BET_ON_BASE_ABI, Prediction, TokenType } from '@/lib/contracts';
 
 interface CreateBetParams {
   matchId: number;
@@ -8,91 +8,68 @@ interface CreateBetParams {
   tokenType: TokenType;
   stake: bigint;
   allowDraw: boolean;
+  targetBettor: `0x${string}`;  // NEW: 0x0 for public, address for private
 }
 
 export function useCreateBet() {
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const { writeContractAsync } = useWriteContract();
+  const { writeContractAsync, isPending: isLoading } = useWriteContract();
 
-  // Read hidden fee
-  const { data: hiddenFee } = useReadContract({
-    address: CONTRACTS.BetOnBase,
-    abi: BET_ON_BASE_ABI,
-    functionName: 'HIDDEN_FEE',
-  });
-
-  const createBet = async ({ matchId, prediction, tokenType, stake, allowDraw }: CreateBetParams) => {
+  const createBet = async ({
+    matchId,
+    prediction,
+    tokenType,
+    stake,
+    allowDraw,
+    targetBettor,  // NEW parameter
+  }: CreateBetParams) => {
     try {
       setError(null);
-      setIsLoading(true);
 
-      // If DRAW prediction, must allow draw
+      // Validation
+      if (!stake || stake <= BigInt(0)) {
+        throw new Error('Invalid stake amount');
+      }
+
       if (prediction === Prediction.DRAW && !allowDraw) {
-        throw new Error('Must allow draw when predicting draw');
+        throw new Error('Must allow draw to predict DRAW');
       }
 
-      // If using ERC20, approve first and WAIT for confirmation
-      if (tokenType !== TokenType.ETH) {
-        const tokenAddress = TOKEN_INFO[tokenType].address;
-        if (!tokenAddress) throw new Error('Invalid token');
-
-        console.log('📝 Approving token...');
-        
-        // Approve token spending
-        const approveTxHash = await writeContractAsync({
-          address: tokenAddress,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [CONTRACTS.BetOnBase, stake],
-        });
-
-        console.log('✅ Approval tx sent:', approveTxHash);
-        console.log('⏳ Waiting for approval to be mined...');
-
-        // CRITICAL FIX: Wait for approval to be confirmed
-        // This prevents the race condition on faster connections
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds for block confirmation
-
-        console.log('✅ Approval confirmed, proceeding with bet...');
+      if (targetBettor !== '0x0000000000000000000000000000000000000000') {
+        // Validate target address format
+        if (!/^0x[a-fA-F0-9]{40}$/.test(targetBettor)) {
+          throw new Error('Invalid target bettor address');
+        }
       }
 
-      // Create the bet
-      const feeValue = (hiddenFee || BigInt(1000000000000000)) as bigint; // Default 0.001 ETH
-      const totalValue = tokenType === TokenType.ETH ? (stake as bigint) + feeValue : feeValue;
+      // Calculate value to send
+      const HIDDEN_FEE = BigInt('1000000000000000'); // 0.001 ETH
+      let value = HIDDEN_FEE;
 
-      console.log('📝 Creating bet with params:', {
-        matchId: BigInt(matchId),
-        prediction,
-        tokenType,
-        stake: stake.toString(),
-        allowDraw,
-        totalValue: totalValue.toString(),
-      });
+      if (tokenType === TokenType.ETH) {
+        value = stake + HIDDEN_FEE;
+      }
 
+      // Call contract
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'createBet',
-        args: [BigInt(matchId), prediction, tokenType, stake, allowDraw],
-        value: totalValue,
+        args: [
+          BigInt(matchId),
+          prediction,
+          stake,
+          tokenType,
+          allowDraw,
+          targetBettor,  // NEW: Pass targetBettor
+        ],
+        value,
       });
 
-      console.log('✅ Bet created successfully! Transaction:', hash);
-      
-      setIsLoading(false);
       return hash;
     } catch (err: any) {
-      console.error('❌ Error creating bet:', err);
-      
-      // Only set error if it's a real error (not just revert after success)
-      if (!err?.message?.includes('Bet creation tx:')) {
-        const errorMessage = err?.message || err?.shortMessage || 'Failed to create bet';
-        setError(errorMessage);
-      }
-      
-      setIsLoading(false);
+      console.error('Create bet error:', err);
+      setError(err.message || 'Failed to create bet');
       throw err;
     }
   };

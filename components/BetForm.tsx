@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
-import { parseEther } from 'viem';
+import { parseEther, parseUnits } from 'viem';
 import { useCreateBet } from '@/hooks/useCreateBet';
 import { Prediction, TokenType, TOKEN_INFO } from '@/lib/contracts';
 import { TrendingUp, AlertCircle } from 'lucide-react';
+import { DrawCheckbox } from '@/components/DrawCheckbox';
+import { PrivateBetToggle } from '@/components/PrivateBetToggle';
+import { DrawStrategyExplainer } from '@/components/DrawStrategyExplainer';
 
 interface BetFormProps {
   matchId: number;
@@ -19,11 +22,21 @@ interface BetFormProps {
 export function BetForm({ matchId, match }: BetFormProps) {
   const { address, isConnected } = useAccount();
   const [prediction, setPrediction] = useState<Prediction>(Prediction.HOME);
-  const tokenType = TokenType.ZKLEGEND; // Fixed to ZKL only
+  const [tokenType, setTokenType] = useState<TokenType>(TokenType.ZKLEGEND); // Default to ZKL for testnet
   const [stake, setStake] = useState('');
   const [allowDraw, setAllowDraw] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [targetAddress, setTargetAddress] = useState('');
+  const [showExplainer, setShowExplainer] = useState(false);
 
   const { createBet, isLoading, error } = useCreateBet();
+
+  // Validation
+  const isValidTargetAddress = targetAddress === '' || /^0x[a-fA-F0-9]{40}$/.test(targetAddress);
+  const canSubmit = stake && parseFloat(stake) > 0 && (!isPrivate || (isPrivate && isValidTargetAddress && targetAddress !== ''));
+  
+  // CRITICAL: If predicting DRAW, must allow draw
+  const drawPredictionError = prediction === Prediction.DRAW && !allowDraw;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,9 +46,28 @@ export function BetForm({ matchId, match }: BetFormProps) {
       return;
     }
 
+    // Validation: DRAW prediction requires allowDraw
+    if (prediction === Prediction.DRAW && !allowDraw) {
+      alert('You must check "Allow Draw" to predict DRAW');
+      return;
+    }
+
+    if (isPrivate && !isValidTargetAddress) {
+      alert('Please enter a valid wallet address');
+      return;
+    }
+
+    if (isPrivate && targetAddress === '') {
+      alert('Please enter your friend\'s wallet address');
+      return;
+    }
+
     try {
-      // ZKL has 18 decimals (like ETH)
-      const stakeAmount = parseEther(stake);
+      const stakeAmount = tokenType === TokenType.USDC 
+        ? parseUnits(stake, 6)
+        : tokenType === TokenType.ZKLEGEND
+        ? parseUnits(stake, 18) // ZKL has 18 decimals
+        : parseEther(stake);
 
       await createBet({
         matchId,
@@ -43,20 +75,33 @@ export function BetForm({ matchId, match }: BetFormProps) {
         tokenType,
         stake: stakeAmount,
         allowDraw,
+        targetBettor: isPrivate ? targetAddress as `0x${string}` : '0x0000000000000000000000000000000000000000', // NEW parameter
       });
 
       // Reset form
       setStake('');
+      setAllowDraw(false);
+      setIsPrivate(false);
+      setTargetAddress('');
       alert('Bet created successfully!');
     } catch (err) {
       console.error('Error creating bet:', err);
     }
   };
 
+  const handlePredictionChange = (newPrediction: Prediction) => {
+    setPrediction(newPrediction);
+    
+    // Auto-check allowDraw if selecting DRAW
+    if (newPrediction === Prediction.DRAW) {
+      setAllowDraw(true);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl p-8 text-center border dark:border-gray-800">
-        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
         <p className="text-gray-600 dark:text-gray-400 mb-4">Connect your wallet to place a bet</p>
       </div>
     );
@@ -65,7 +110,7 @@ export function BetForm({ matchId, match }: BetFormProps) {
   if (match.bettingClosed) {
     return (
       <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-8 text-center border dark:border-gray-700">
-        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <AlertCircle className="h-12 w-12 text-gray-400 dark:text-gray-600 mx-auto mb-4" />
         <p className="text-gray-600 dark:text-gray-400">Betting is closed for this match</p>
       </div>
     );
@@ -73,16 +118,17 @@ export function BetForm({ matchId, match }: BetFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-900 rounded-xl p-6 border dark:border-gray-800 space-y-6">
+      
       {/* Prediction Selection */}
       <div>
         <label className="block text-sm font-medium mb-3 dark:text-white">Your Prediction</label>
         <div className="grid grid-cols-3 gap-3">
           <button
             type="button"
-            onClick={() => setPrediction(Prediction.HOME)}
+            onClick={() => handlePredictionChange(Prediction.HOME)}
             className={`p-4 rounded-lg border-2 transition-all ${
               prediction === Prediction.HOME
-                ? 'border-primary bg-primary/5 font-semibold'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10 font-semibold'
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
             }`}
           >
@@ -92,10 +138,10 @@ export function BetForm({ matchId, match }: BetFormProps) {
 
           <button
             type="button"
-            onClick={() => setPrediction(Prediction.DRAW)}
+            onClick={() => handlePredictionChange(Prediction.DRAW)}
             className={`p-4 rounded-lg border-2 transition-all ${
               prediction === Prediction.DRAW
-                ? 'border-primary bg-primary/5 font-semibold'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10 font-semibold'
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
             }`}
           >
@@ -105,10 +151,10 @@ export function BetForm({ matchId, match }: BetFormProps) {
 
           <button
             type="button"
-            onClick={() => setPrediction(Prediction.AWAY)}
+            onClick={() => handlePredictionChange(Prediction.AWAY)}
             className={`p-4 rounded-lg border-2 transition-all ${
               prediction === Prediction.AWAY
-                ? 'border-primary bg-primary/5 font-semibold'
+                ? 'border-primary bg-primary/5 dark:bg-primary/10 font-semibold'
                 : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
             }`}
           >
@@ -118,58 +164,90 @@ export function BetForm({ matchId, match }: BetFormProps) {
         </div>
       </div>
 
-      {/* Token Display (ZKL Only) */}
+      {/* Token Selection */}
       <div>
-        <label className="block text-sm font-medium mb-3 dark:text-white">Bet Currency</label>
-        <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">You're betting with</div>
-              <div className="text-xl font-bold text-purple-900 dark:text-purple-300">
-                {TOKEN_INFO[TokenType.ZKLEGEND].symbol}
-              </div>
-            </div>
-            <div className="text-3xl">🎮</div>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            {TOKEN_INFO[TokenType.ZKLEGEND].name}
-          </p>
+        <label className="block text-sm font-medium mb-3 dark:text-white">Bet With</label>
+        <div className="grid grid-cols-3 gap-3">
+          {Object.entries(TOKEN_INFO).map(([key, info]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTokenType(parseInt(key) as TokenType)}
+              className={`p-3 rounded-lg border-2 transition-all ${
+                tokenType === parseInt(key)
+                  ? 'border-primary bg-primary/5 dark:bg-primary/10 font-semibold'
+                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+              }`}
+            >
+              <div className="dark:text-white">{info.symbol}</div>
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Stake Amount */}
       <div>
         <label className="block text-sm font-medium mb-2 dark:text-white">
-          Stake Amount (ZKL)
+          Stake Amount ({TOKEN_INFO[tokenType].symbol})
         </label>
         <input
           type="number"
           step="any"
           value={stake}
           onChange={(e) => setStake(e.target.value)}
-          placeholder="Enter amount in ZKL"
-          className="w-full px-4 py-3 border dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-800 dark:text-white"
+          placeholder={`Min: $10 USD, Max: $1M USD`}
+          className="w-full px-4 py-3 border dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-800 dark:text-white"
         />
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          Min: $10 USD equivalent • Max: $1,000,000 USD equivalent
+          Minimum: $10 USD | Maximum: $1,000,000 USD
         </p>
       </div>
 
-      {/* Allow Draw Option */}
-      {prediction !== Prediction.DRAW && (
-        <div className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <input
-            type="checkbox"
-            id="allowDraw"
-            checked={allowDraw}
-            onChange={(e) => setAllowDraw(e.target.checked)}
-            className="w-4 h-4"
-          />
-          <label htmlFor="allowDraw" className="text-sm dark:text-gray-300">
-            Allow draw (if match ends in draw, get refund)
-          </label>
+      {/* Draw Checkbox - NEW COMPONENT */}
+      <div className="border-t dark:border-gray-700 pt-4">
+        <DrawCheckbox
+          checked={allowDraw}
+          onChange={setAllowDraw}
+          disabled={prediction === Prediction.DRAW} // Can't uncheck if predicting DRAW
+          isCreator={true}
+        />
+        
+        {/* Error if DRAW prediction without allowDraw */}
+        {drawPredictionError && (
+          <div className="mt-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <p className="text-sm text-red-600 dark:text-red-400 font-medium">
+              ⚠️ You must check "Allow Draw" to predict DRAW
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Learn More Button */}
+      <button
+        type="button"
+        onClick={() => setShowExplainer(!showExplainer)}
+        className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+      >
+        {showExplainer ? '− Hide' : '+ Learn More About Draw Strategy'}
+      </button>
+
+      {/* Draw Explainer */}
+      {showExplainer && (
+        <div className="border-t dark:border-gray-700 pt-4">
+          <DrawStrategyExplainer isCreator={true} showDetailed={true} />
         </div>
       )}
+
+      {/* Private Bet Toggle - NEW COMPONENT */}
+      <div className="border-t dark:border-gray-700 pt-4">
+        <PrivateBetToggle
+          isPrivate={isPrivate}
+          onToggle={setIsPrivate}
+          targetAddress={targetAddress}
+          onAddressChange={setTargetAddress}
+          disabled={isLoading}
+        />
+      </div>
 
       {/* Error Message */}
       {error && (
@@ -181,8 +259,8 @@ export function BetForm({ matchId, match }: BetFormProps) {
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={isLoading || !stake}
-        className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+        disabled={isLoading || !canSubmit || drawPredictionError}
+        className="w-full bg-green-600 dark:bg-green-700 text-white py-4 rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isLoading ? (
           <>
@@ -192,23 +270,16 @@ export function BetForm({ matchId, match }: BetFormProps) {
         ) : (
           <>
             <TrendingUp className="h-5 w-5" />
-            <span>Place Bet with ZKL</span>
+            <span>{isPrivate ? 'Create Private Bet' : 'Place Bet'}</span>
           </>
         )}
       </button>
 
       {/* Fee Info */}
-      <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1 pt-2 border-t dark:border-gray-800">
-        <p>💰 Success fee: 2.5% on winnings</p>
-        <p>⚡ Hidden fee: 0.001 ETH per transaction</p>
-        <p>🕐 Bets close 15 minutes before match starts</p>
-      </div>
-
-      {/* Testnet Notice */}
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-        <p className="text-xs text-yellow-800 dark:text-yellow-300 text-center">
-          ⚠️ Testnet Mode: Using ZKL token • Mainnet will use USDC
-        </p>
+      <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
+        <p>Winner pays 2.5% fee on winnings</p>
+        <p>Betting closes 15 minutes before match starts</p>
+        {isPrivate && <p className="text-purple-600 dark:text-purple-400 font-medium">🔒 This will be a private bet</p>}
       </div>
     </form>
   );

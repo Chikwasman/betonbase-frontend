@@ -1,5 +1,5 @@
 export const CONTRACTS = {
-  BetOnBase: '0xF75dD9a3101040B99FA61708CF1A8038Cce048b5' as `0x${string}`,
+  BetOnBase: '0x9bFb402c02A1d349aeDc2F6A59ab9f8f801C2978' as `0x${string}`,
   // Base Sepolia USDC (official Circle USDC)
   USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' as `0x${string}`,
   // Your Mock ZKLegend token
@@ -10,206 +10,559 @@ export const CONTRACTS = {
 } as const;
 
 export const BET_ON_BASE_ABI = [
-  // Read functions
   {
-    name: 'matches',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'matchId', type: 'uint256' }],
-    outputs: [
-      { name: 'apiMatchId', type: 'uint256' },
-      { name: 'kickoffTime', type: 'uint256' },
-      { name: 'bettingClosed', type: 'bool' },
-      { name: 'result', type: 'uint8' },
-      { name: 'settled', type: 'bool' }
-    ]
-  },
-  {
-    name: 'bets',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: [
-      { name: 'betId', type: 'uint256' },
-      { name: 'matchId', type: 'uint256' },
-      { name: 'bettor', type: 'address' },
-      { name: 'prediction', type: 'uint8' },
-      { name: 'stake', type: 'uint256' },
-      { name: 'tokenType', type: 'uint8' },
-      { name: 'allowDraw', type: 'bool' },
-      { name: 'status', type: 'uint8' },
-      { name: 'matchedBetId', type: 'uint256' },
-      { name: 'createdAt', type: 'uint256' }
-    ]
-  },
-  {
-    name: 'getWaitingBets',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'matchId', type: 'uint256' },
-      { name: 'prediction', type: 'uint8' }
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "betId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "matchId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "bettor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum BetOnBase.Prediction",
+        "name": "prediction",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "stake",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum BetOnBase.TokenType",
+        "name": "tokenType",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "allowDraw",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "targetBettor",
+        "type": "address"
+      }
     ],
-    outputs: [{ name: '', type: 'uint256[]' }]
+    "name": "BetCreated",
+    "type": "event"
   },
   {
-    name: 'getMatchBets',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'matchId', type: 'uint256' }],
-    outputs: [{ name: '', type: 'uint256[]' }]
-  },
-  {
-    name: 'canWithdrawWinnings',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: [{ name: '', type: 'bool' }]
-  },
-  {
-    name: 'canRefundDraw',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: [{ name: '', type: 'bool' }]
-  },
-  {
-    name: 'getStakeInUsd',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'tokenType', type: 'uint8' },
-      { name: 'stake', type: 'uint256' }
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "betId1",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "betId2",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "matchId",
+        "type": "uint256"
+      }
     ],
-    outputs: [{ name: '', type: 'uint256' }]
+    "name": "BetMatched",
+    "type": "event"
   },
   {
-    name: 'nextBetId',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'HIDDEN_FEE',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'WINNER_FEE_BP',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'MIN_STAKE_USD',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  {
-    name: 'MAX_STAKE_USD',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'uint256' }]
-  },
-  
-  // Write functions
-  {
-    name: 'createBet',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'matchId', type: 'uint256' },
-      { name: 'prediction', type: 'uint8' },
-      { name: 'tokenType', type: 'uint8' },
-      { name: 'stake', type: 'uint256' },
-      { name: 'allowDraw', type: 'bool' }
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "betId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "bettor",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
     ],
-    outputs: []
+    "name": "BetRefunded",
+    "type": "event"
   },
   {
-    name: 'matchBet',
-    type: 'function',
-    stateMutability: 'payable',
-    inputs: [{ name: 'targetBetId', type: 'uint256' }],
-    outputs: []
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "betId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "winnings",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "fee",
+        "type": "uint256"
+      }
+    ],
+    "name": "BetSettled",
+    "type": "event"
   },
   {
-    name: 'withdrawWinnings',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: []
+    "inputs": [],
+    "name": "HIDDEN_FEE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'withdrawUnmatched',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: []
+    "inputs": [],
+    "name": "MAX_STAKE_USD",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'refundDraw',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: []
+    "inputs": [],
+    "name": "MIN_STAKE_USD",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'refundCancelled',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'betId', type: 'uint256' }],
-    outputs: []
-  },
-  
-  // Events
-  {
-    name: 'BetCreated',
-    type: 'event',
-    inputs: [
-      { name: 'betId', type: 'uint256', indexed: true },
-      { name: 'matchId', type: 'uint256', indexed: true },
-      { name: 'bettor', type: 'address', indexed: true },
-      { name: 'prediction', type: 'uint8', indexed: false },
-      { name: 'stake', type: 'uint256', indexed: false },
-      { name: 'tokenType', type: 'uint8', indexed: false },
-      { name: 'allowDraw', type: 'bool', indexed: false }
-    ]
+    "inputs": [],
+    "name": "WINNER_FEE_BP",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'BetMatched',
-    type: 'event',
-    inputs: [
-      { name: 'betId1', type: 'uint256', indexed: true },
-      { name: 'betId2', type: 'uint256', indexed: true },
-      { name: 'matchId', type: 'uint256', indexed: true }
-    ]
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "bets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "betId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "matchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "bettor",
+        "type": "address"
+      },
+      {
+        "internalType": "enum BetOnBase.Prediction",
+        "name": "prediction",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "stake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum BetOnBase.TokenType",
+        "name": "tokenType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "allowDraw",
+        "type": "bool"
+      },
+      {
+        "internalType": "enum BetOnBase.BetStatus",
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "matchedBetId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "createdAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "targetBettor",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'BetSettled',
-    type: 'event',
-    inputs: [
-      { name: 'betId', type: 'uint256', indexed: true },
-      { name: 'winner', type: 'address', indexed: true },
-      { name: 'winnings', type: 'uint256', indexed: false },
-      { name: 'fee', type: 'uint256', indexed: false }
-    ]
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "canRefundDraw",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
   },
   {
-    name: 'BetRefunded',
-    type: 'event',
-    inputs: [
-      { name: 'betId', type: 'uint256', indexed: true },
-      { name: 'bettor', type: 'address', indexed: true },
-      { name: 'amount', type: 'uint256', indexed: false }
-    ]
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "canWithdrawWinnings",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_matchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum BetOnBase.Prediction",
+        "name": "_prediction",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_stake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum BetOnBase.TokenType",
+        "name": "_tokenType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "_allowDraw",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "_targetBettor",
+        "type": "address"
+      }
+    ],
+    "name": "createBet",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "feeCollector",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_matchId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMatchBets",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "enum BetOnBase.TokenType",
+        "name": "_tokenType",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_stake",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStakeInUsd",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_matchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "enum BetOnBase.Prediction",
+        "name": "_prediction",
+        "type": "uint8"
+      }
+    ],
+    "name": "getWaitingBets",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_targetBetId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "_allowDraw",
+        "type": "bool"
+      }
+    ],
+    "name": "matchBet",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "matches",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "apiMatchId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "kickoffTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "bettingClosed",
+        "type": "bool"
+      },
+      {
+        "internalType": "enum BetOnBase.MatchResult",
+        "name": "result",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "settled",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nextBetId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "oracle",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "refundCancelled",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "refundDraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawUnmatched",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_betId",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdrawWinnings",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   }
 ] as const;
 
@@ -296,13 +649,13 @@ export const TOKEN_INFO = {
     symbol: 'USDC',
     name: 'USD Coin (Sepolia)',
     decimals: 6,
-    address: CONTRACTS.USDC, // Real Base Sepolia USDC
+    address: CONTRACTS.USDC,
   },
   [TokenType.ZKLEGEND]: {
     symbol: 'ZKL',
     name: 'ZKLegend Token',
     decimals: 18,
-    address: CONTRACTS.MockZklegend, // Your mock token
+    address: CONTRACTS.MockZklegend,
   },
 } as const;
 

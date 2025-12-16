@@ -1,45 +1,38 @@
 import { useState } from 'react';
-import { useWriteContract, useReadContract } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI } from '@/lib/contracts';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { CONTRACTS, BET_ON_BASE_ABI, TokenType } from '@/lib/contracts';
 
 export function useMatchBet() {
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { writeContractAsync, isPending: isLoading } = useWriteContract();
 
-  const { writeContractAsync } = useWriteContract();
-
-  // Read hidden fee
-  const { data: hiddenFee } = useReadContract({
-    address: CONTRACTS.BetOnBase,
-    abi: BET_ON_BASE_ABI,
-    functionName: 'HIDDEN_FEE',
-  });
-
-  const matchBet = async (betId: bigint) => {
+  const matchBet = async (betId: bigint, allowDraw: boolean) => {  // NEW: allowDraw parameter
     try {
-      setIsLoading(true);
       setError(null);
 
-      // Get bet details to determine value needed
-      // For now, just send a reasonable amount
-      const value = hiddenFee || BigInt(0);
+      // For now, we'll use the simplest approach:
+      // User sends ETH to match ETH bets, or ERC20 for ERC20 bets
+      // The contract will handle stake validation
+      
+      const HIDDEN_FEE = BigInt('1000000000000000'); // 0.001 ETH
 
+      // Call contract
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'matchBet',
-        args: [betId],
-        value,
+        args: [
+          betId,
+          allowDraw,  // NEW: Pass allowDraw parameter
+        ],
+        value: HIDDEN_FEE, // User pays hidden fee in ETH
       });
 
-      console.log('Match bet tx:', hash);
       return hash;
     } catch (err: any) {
-      console.error('Error matching bet:', err);
+      console.error('Match bet error:', err);
       setError(err.message || 'Failed to match bet');
       throw err;
-    } finally {
-      setIsLoading(false);
     }
   };
 

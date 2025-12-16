@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI, Prediction, BetStatus, MatchResult, TokenType, TOKEN_INFO } from '@/lib/contracts';
-import { Trophy, TrendingUp, Loader2, Wallet, Clock } from 'lucide-react';
-import Link from 'next/link';
+import { useAccount, useReadContracts, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { CONTRACTS, BET_ON_BASE_ABI, BetStatus, MatchResult, TOKEN_INFO, TokenType, Prediction } from '@/lib/contracts';
 import { formatStake, getPredictionLabel } from '@/lib/utils';
-import { WinCelebration } from './WinCelebration';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+import { Trophy, Clock, Loader2, CheckCircle, XCircle, TrendingUp, RefreshCw, Lock } from 'lucide-react';
+import { WinCelebration } from '@/components/WinCelebration';
 
 interface UserBet {
   betId: bigint;
@@ -18,263 +15,254 @@ interface UserBet {
   stake: bigint;
   tokenType: number;
   allowDraw: boolean;
-  status: number;
+  betStatus: number;
   matchedBetId: bigint;
-  createdAt: bigint;
-  homeTeam?: string;
-  awayTeam?: string;
-  league?: string;
-  kickoffTime?: number;
-  matchResult?: number;
-  isSettled?: boolean;
-  isWinner?: boolean;
-  isClaimed?: boolean;
+  targetBettor: string;
+  isClaimed: boolean;
 }
 
-type TabType = 'all' | 'waiting' | 'matched';
+interface MatchData {
+  kickoffTime: bigint;
+  bettingClosed: boolean;
+  result: number;
+  settled: boolean;
+}
 
 export function MyBets() {
-  const { address, isConnected } = useAccount();
-  const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [matches, setMatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [claimingBetId, setClaimingBetId] = useState<bigint | null>(null);
-  const [lastClaimTxHash, setLastClaimTxHash] = useState<string | null>(null);
+  const { address } = useAccount();
+  const [userBetIds, setUserBetIds] = useState<bigint[]>([]);
+  const [filter, setFilter] = useState<'all' | 'active' | 'won' | 'lost'>('all');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [claimingBetId, setClaimingBetId] = useState<bigint | null>(null);
+  const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const [showCelebration, setShowCelebration] = useState(false);
-  const [claimedAmount, setClaimedAmount] = useState<string>('');
+  const [claimedAmount, setClaimedAmount] = useState<string>('0');
 
   const { writeContractAsync } = useWriteContract();
 
-  // Wait for claim transaction to complete
+  // Monitor transaction
   const { isSuccess: claimSuccess } = useWaitForTransactionReceipt({
-    hash: lastClaimTxHash as `0x${string}` | undefined,
+    hash: txHash,
   });
 
-  // Trigger celebration then refresh when claim succeeds
+  // Trigger refresh after claim success
   useEffect(() => {
-    if (claimSuccess) {
-      console.log('✅ Claim successful, showing celebration...');
-      setShowCelebration(true); // Show celebration first!
+    if (claimSuccess && txHash) {
+      setShowCelebration(true);
       // Refresh will happen after celebration completes
+      setTxHash(undefined);
+      setClaimingBetId(null);
     }
-  }, [claimSuccess]);
+  }, [claimSuccess, txHash]);
 
-  // Handle celebration complete
   const handleCelebrationComplete = () => {
-    console.log('🎉 Celebration complete, refreshing data...');
     setShowCelebration(false);
-    setRefreshTrigger(prev => prev + 1); // Now refresh the data
-    setClaimingBetId(null);
-    setLastClaimTxHash(null);
-    setClaimedAmount('');
+    setRefreshTrigger(prev => prev + 1);
   };
 
-  // Get total number of bets
-  const { data: nextBetId, refetch: refetchNextBetId } = useReadContract({
-    address: CONTRACTS.BetOnBase,
-    abi: BET_ON_BASE_ABI,
-    functionName: 'nextBetId',
-  });
-
-  // Fetch matches from API
-  useEffect(() => {
-    async function fetchMatches() {
-      try {
-        const response = await fetch(`${API_URL}/api/matches`);
-        const data = await response.json();
-        if (data.success) {
-          setMatches(data.matches);
-        }
-      } catch (error) {
-        console.error('Error fetching matches:', error);
-      }
-    }
-    fetchMatches();
-  }, []);
-
-  // Generate bet IDs to check (last 50 bets)
-  const betIdsToCheck = [];
-  if (nextBetId) {
-    const totalBets = Number(nextBetId) - 1;
-    const startFrom = Math.max(1, totalBets - 49);
-    for (let i = totalBets; i >= startFrom; i--) {
-      betIdsToCheck.push(BigInt(i));
-    }
-  }
-
-  // Fetch all bet details
-  const { data: betsData, isLoading: loadingBets, refetch: refetchBets } = useReadContracts({
-    contracts: betIdsToCheck.map(betId => ({
+  // Fetch user's bet IDs
+  const { data: betIdsData, refetch: refetchBetIds } = useReadContracts({
+    contracts: address ? [{
       address: CONTRACTS.BetOnBase,
       abi: BET_ON_BASE_ABI,
-      functionName: 'bets',
-      args: [betId],
-    })),
+      functionName: 'getUserBets',
+      args: [address],
+    }] : [],
   });
 
-  // Refetch when refresh is triggered
+  useEffect(() => {
+    if (betIdsData && betIdsData[0]?.status === 'success') {
+      const ids = betIdsData[0].result as bigint[];
+      setUserBetIds(ids || []);
+    }
+  }, [betIdsData, refreshTrigger]);
+
   useEffect(() => {
     if (refreshTrigger > 0) {
-      refetchBets();
+      refetchBetIds();
     }
-  }, [refreshTrigger, refetchBets]);
+  }, [refreshTrigger, refetchBetIds]);
 
-  // Get unique match IDs from user's bets
-  const userMatchIds = new Set<bigint>();
-  if (betsData && address) {
-    betIdsToCheck.forEach((betId, index) => {
-      const betData = betsData[index];
-      if (betData.status === 'success' && betData.result) {
-        const result = betData.result as any;
-        const bettor = result[2] as string;
-        if (bettor.toLowerCase() === address.toLowerCase()) {
-          userMatchIds.add(result[1]);
-        }
-      }
-    });
-  }
+  // Fetch bet details
+  const betQueries = userBetIds.map(betId => ({
+    address: CONTRACTS.BetOnBase,
+    abi: BET_ON_BASE_ABI,
+    functionName: 'bets',
+    args: [betId],
+  }));
 
-  // Fetch match details from contract
-  const matchDetailsQueries = Array.from(userMatchIds).map(matchId => ({
+  const { data: betsData, refetch: refetchBets } = useReadContracts({
+    contracts: betQueries,
+  });
+
+  // Fetch match data for each bet
+  const matchIds = betsData?.map(bet => {
+    if (bet.status === 'success' && bet.result) {
+      const result = bet.result as any;
+      return result[1]; // matchId
+    }
+    return BigInt(0);
+  }).filter(id => id !== BigInt(0)) || [];
+
+  const matchQueries = matchIds.map(matchId => ({
     address: CONTRACTS.BetOnBase,
     abi: BET_ON_BASE_ABI,
     functionName: 'matches',
     args: [matchId],
   }));
 
-  const { data: contractMatchesData, refetch: refetchMatches } = useReadContracts({
-    contracts: matchDetailsQueries,
+  const { data: matchesData, refetch: refetchMatches } = useReadContracts({
+    contracts: matchQueries,
   });
 
-  // Refetch matches when refresh is triggered
   useEffect(() => {
     if (refreshTrigger > 0) {
+      refetchBets();
       refetchMatches();
     }
-  }, [refreshTrigger, refetchMatches]);
+  }, [refreshTrigger, refetchBets, refetchMatches]);
 
-  // Process bets
-  const userBets: UserBet[] = [];
+  // Parse bets
+  const userBets: (UserBet & { matchData: MatchData | null; matchedBet?: UserBet })[] = [];
   
-  if (betsData && address) {
-    betIdsToCheck.forEach((betId, index) => {
-      const betData = betsData[index];
-      
-      if (betData.status === 'success' && betData.result) {
-        const result = betData.result as any;
-        const bettor = result[2] as string;
+  if (betsData && matchesData) {
+    betsData.forEach((bet, index) => {
+      if (bet.status === 'success' && bet.result) {
+        const result = bet.result as any;
+        const matchData = matchesData[index];
         
-        if (bettor.toLowerCase() === address.toLowerCase()) {
-          const matchId = result[1];
-          let matchInfo = matches.find(m => m.id === Number(matchId));
-          let contractMatch = null;
-          let matchResult = MatchResult.PENDING;
-          let isSettled = false;
-          
-          const matchIdArray = Array.from(userMatchIds);
-          const matchIndex = matchIdArray.findIndex(id => id === matchId);
-          
-          if (matchIndex >= 0 && contractMatchesData?.[matchIndex]) {
-            const matchData = contractMatchesData[matchIndex];
-            if (matchData.status === 'success' && matchData.result) {
-              const contractResult = matchData.result as any;
-              contractMatch = {
-                apiMatchId: Number(contractResult[0]),
-                kickoffTime: Number(contractResult[1]),
-                bettingClosed: contractResult[2],
-                result: Number(contractResult[3]),
-                settled: contractResult[4],
-              };
-              matchResult = contractMatch.result;
-              isSettled = contractMatch.settled;
-            }
-          }
-
-          const prediction = Number(result[3]);
-          const betStatus = Number(result[7]);
-          const wasMatched = betStatus === BetStatus.MATCHED || betStatus === BetStatus.SETTLED;
-          const isWinner = isSettled && wasMatched && (
-            (matchResult === MatchResult.HOME_WIN && prediction === Prediction.HOME) ||
-            (matchResult === MatchResult.AWAY_WIN && prediction === Prediction.AWAY) ||
-            (matchResult === MatchResult.DRAW && prediction === Prediction.DRAW)
-          );
-          
-          const isClaimed = betStatus === BetStatus.SETTLED;
-          
-          userBets.push({
-            betId,
-            matchId: result[1],
-            bettor: result[2],
-            prediction,
-            stake: result[4],
-            tokenType: Number(result[5]),
-            allowDraw: result[6],
-            status: betStatus,
-            matchedBetId: result[8],
-            createdAt: result[9],
-            homeTeam: matchInfo?.homeTeam,
-            awayTeam: matchInfo?.awayTeam,
-            league: matchInfo?.league,
-            kickoffTime: matchInfo?.kickoffTime || contractMatch?.kickoffTime,
-            matchResult,
-            isSettled,
-            isWinner,
-            isClaimed,
-          });
-        }
+        const userBet: UserBet & { matchData: MatchData | null; matchedBet?: UserBet } = {
+          betId: result[0],
+          matchId: result[1],
+          bettor: result[2],
+          prediction: Number(result[3]),
+          stake: result[4],
+          tokenType: Number(result[5]),
+          allowDraw: result[6],
+          betStatus: Number(result[7]),
+          matchedBetId: result[8],
+          targetBettor: result[10],
+          isClaimed: Number(result[7]) === BetStatus.SETTLED,
+          matchData: matchData && matchData.status === 'success' && matchData.result ? {
+            kickoffTime: (matchData.result as any)[1],
+            bettingClosed: (matchData.result as any)[2],
+            result: Number((matchData.result as any)[3]),
+            settled: (matchData.result as any)[4],
+          } : null,
+        };
+        
+        userBets.push(userBet);
       }
     });
   }
 
-  const sortedBets = userBets
-    .sort((a, b) => Number(b.createdAt - a.createdAt))
-    .slice(0, 15);
+  // Fetch matched bet details for winner determination
+  const matchedBetQueries = userBets
+    .filter(bet => bet.matchedBetId && bet.matchedBetId !== BigInt(0))
+    .map(bet => ({
+      address: CONTRACTS.BetOnBase,
+      abi: BET_ON_BASE_ABI,
+      functionName: 'bets',
+      args: [bet.matchedBetId],
+    }));
 
-  const filteredBets = sortedBets.filter(bet => {
-    if (activeTab === 'all') return true;
-    if (activeTab === 'waiting') return bet.status === BetStatus.WAITING;
-    if (activeTab === 'matched') return bet.status === BetStatus.MATCHED;
-    return false;
+  const { data: matchedBetsData } = useReadContracts({
+    contracts: matchedBetQueries,
   });
 
-  useEffect(() => {
-    if (!loadingBets) {
-      setLoading(false);
-    }
-  }, [loadingBets]);
+  // Attach matched bet data
+  if (matchedBetsData) {
+    let matchedIndex = 0;
+    userBets.forEach(bet => {
+      if (bet.matchedBetId && bet.matchedBetId !== BigInt(0)) {
+        const matchedData = matchedBetsData[matchedIndex];
+        if (matchedData && matchedData.status === 'success' && matchedData.result) {
+          const result = matchedData.result as any;
+          bet.matchedBet = {
+            betId: result[0],
+            matchId: result[1],
+            bettor: result[2],
+            prediction: Number(result[3]),
+            stake: result[4],
+            tokenType: Number(result[5]),
+            allowDraw: result[6],
+            betStatus: Number(result[7]),
+            matchedBetId: result[8],
+            targetBettor: result[10],
+            isClaimed: false,
+          };
+        }
+        matchedIndex++;
+      }
+    });
+  }
 
-  const handleWithdrawUnmatched = async (betId: bigint) => {
-    try {
-      const hash = await writeContractAsync({
-        address: CONTRACTS.BetOnBase,
-        abi: BET_ON_BASE_ABI,
-        functionName: 'withdrawUnmatched',
-        args: [betId],
-      });
-      console.log('Withdrawal transaction:', hash);
+  // Determine winners with NEW draw logic
+  userBets.forEach(bet => {
+    if (bet.matchData?.settled && bet.matchData.result !== MatchResult.PENDING) {
+      const matchResult = bet.matchData.result;
+      const matchedBet = bet.matchedBet;
       
-      setTimeout(() => {
-        setRefreshTrigger(prev => prev + 1);
-      }, 3000);
-    } catch (error) {
-      console.error('Error withdrawing:', error);
+      if (matchResult === MatchResult.DRAW && matchedBet) {
+        // NEW DRAW LOGIC
+        
+        // If either predicted DRAW, they win
+        if (bet.prediction === Prediction.DRAW) {
+          (bet as any).isWinner = true;
+        } else if (matchedBet.prediction === Prediction.DRAW) {
+          (bet as any).isWinner = false;
+        } else {
+          // Neither predicted DRAW, check allowDraw
+          const betAllowsDraw = bet.allowDraw;
+          const matchedAllowsDraw = matchedBet.allowDraw;
+          
+          if (betAllowsDraw && !matchedAllowsDraw) {
+            (bet as any).isWinner = true;
+          } else if (!betAllowsDraw && matchedAllowsDraw) {
+            (bet as any).isWinner = false;
+          } else {
+            // Both same → Refund
+            (bet as any).isWinner = null; // null = refund
+          }
+        }
+      } else {
+        // Normal HOME/AWAY logic
+        if (matchResult === MatchResult.HOME_WIN && bet.prediction === Prediction.HOME) {
+          (bet as any).isWinner = true;
+        } else if (matchResult === MatchResult.AWAY_WIN && bet.prediction === Prediction.AWAY) {
+          (bet as any).isWinner = true;
+        } else {
+          (bet as any).isWinner = false;
+        }
+      }
     }
-  };
+  });
 
-  const handleWithdrawWinnings = async (betId: bigint) => {
+  // Filter bets
+  const filteredBets = userBets.filter(bet => {
+    if (filter === 'all') return true;
+    
+    if (filter === 'active') {
+      return bet.betStatus === BetStatus.WAITING || 
+             (bet.betStatus === BetStatus.MATCHED && !bet.matchData?.settled);
+    }
+    
+    if (filter === 'won') {
+      return (bet as any).isWinner === true;
+    }
+    
+    if (filter === 'lost') {
+      return (bet as any).isWinner === false;
+    }
+    
+    return true;
+  });
+
+  const handleWithdrawWinnings = async (betId: bigint, stake: bigint) => {
     try {
       setClaimingBetId(betId);
-      
-      // Find the bet to get stake amount for celebration
-      const bet = sortedBets.find(b => b.betId === betId);
-      if (bet) {
-        const tokenInfo = TOKEN_INFO[bet.tokenType as TokenType];
-        const stakeAmount = formatStake(bet.stake, tokenInfo.decimals);
-        // Calculate winnings (stake * 2 - 2.5% fee)
-        const winnings = (Number(stakeAmount) * 2 * 0.975).toFixed(2);
-        setClaimedAmount(`${winnings} ${tokenInfo.symbol}`);
-      }
+      const winnings = (Number(stake) * 2 * 0.975).toFixed(2);
+      setClaimedAmount(winnings);
       
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
@@ -283,239 +271,250 @@ export function MyBets() {
         args: [betId],
       });
       
-      console.log('✅ Claim transaction sent:', hash);
-      setLastClaimTxHash(hash);
+      setTxHash(hash);
     } catch (error) {
-      console.error('❌ Error claiming winnings:', error);
+      console.error('Error withdrawing:', error);
       setClaimingBetId(null);
-      setLastClaimTxHash(null);
-      setClaimedAmount('');
     }
   };
 
-  if (!isConnected) {
+  if (!address) {
     return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border dark:border-gray-800">
-        <h2 className="text-2xl font-bold mb-4 dark:text-white">My Bets</h2>
-        <div className="text-center py-8">
-          <Wallet className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 dark:text-gray-400">Connect your wallet to view your bets</p>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600 dark:text-gray-400">Connect your wallet to view your bets</p>
         </div>
       </div>
     );
   }
 
   return (
-    <>
-      {/* Win Celebration Overlay */}
-      <WinCelebration 
-        show={showCelebration} 
-        onComplete={handleCelebrationComplete}
-        amount={claimedAmount}
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <div className="container mx-auto px-4 py-8">
+        
+        {/* Celebration */}
+        <WinCelebration 
+          show={showCelebration}
+          onComplete={handleCelebrationComplete}
+          amount={claimedAmount}
+        />
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border dark:border-gray-800">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold dark:text-white">My Bets</h2>
-          {!loading && sortedBets.length > 0 && (
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {sortedBets.length} of your recent bets
-            </span>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b dark:border-gray-800">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold dark:text-white">My Bets</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track all your bets and claim winnings</p>
+          </div>
+          
           <button
-            onClick={() => setActiveTab('all')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'all'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
+            onClick={() => setRefreshTrigger(prev => prev + 1)}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-900 border dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
-            All
-            {sortedBets.length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 text-xs rounded-full">
-                {sortedBets.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('waiting')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'waiting'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Waiting
-            {sortedBets.filter(b => b.status === BetStatus.WAITING).length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs rounded-full">
-                {sortedBets.filter(b => b.status === BetStatus.WAITING).length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('matched')}
-            className={`px-6 py-3 font-medium transition-colors ${
-              activeTab === 'matched'
-                ? 'text-primary border-b-2 border-primary'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-            }`}
-          >
-            Matched
-            {sortedBets.filter(b => b.status === BetStatus.MATCHED).length > 0 && (
-              <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs rounded-full">
-                {sortedBets.filter(b => b.status === BetStatus.MATCHED).length}
-              </span>
-            )}
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh</span>
           </button>
         </div>
 
-        {loading && (
-          <div className="text-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-gray-400">Loading your bets...</p>
-          </div>
-        )}
+        {/* Filters */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {(['all', 'active', 'won', 'lost'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                filter === f
+                  ? 'bg-primary text-white'
+                  : 'bg-white dark:bg-gray-900 border dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
 
-        {!loading && filteredBets.length === 0 && (
-          <div className="text-center py-12">
-            <Trophy className="h-16 w-16 text-gray-300 dark:text-gray-700 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
-              {activeTab === 'all' ? 'No bets yet' : `No ${activeTab} bets`}
-            </p>
-            <p className="text-sm text-gray-400 dark:text-gray-500 mb-6">
-              {activeTab === 'all' 
-                ? "Place your first bet on an upcoming match!" 
-                : "Switch tabs to see your other bets"}
-            </p>
+        {/* Bets List */}
+        {filteredBets.length === 0 ? (
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-12 text-center border dark:border-gray-800">
+            <p className="text-gray-500 dark:text-gray-400">No bets found</p>
           </div>
-        )}
-
-        {!loading && filteredBets.length > 0 && (
-          <div className="space-y-3">
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBets.map((bet) => {
               const tokenInfo = TOKEN_INFO[bet.tokenType as TokenType];
+              const isPrivate = bet.targetBettor && bet.targetBettor !== '0x0000000000000000000000000000000000000000';
+              const isWinner = (bet as any).isWinner;
               const isClaiming = claimingBetId === bet.betId;
-
+              const showClaimButton = isWinner === true && !bet.isClaimed && bet.betStatus === BetStatus.MATCHED;
+              
+              // Draw outcome determination
+              let drawOutcome = null;
+              if (bet.matchData?.result === MatchResult.DRAW && bet.matchedBet) {
+                if (bet.prediction === Prediction.DRAW) {
+                  drawOutcome = 'predicted-draw-won';
+                } else if (bet.matchedBet.prediction === Prediction.DRAW) {
+                  drawOutcome = 'opponent-predicted-draw';
+                } else if (bet.allowDraw && !bet.matchedBet.allowDraw) {
+                  drawOutcome = 'you-allowed-won';
+                } else if (!bet.allowDraw && bet.matchedBet.allowDraw) {
+                  drawOutcome = 'opponent-allowed-won';
+                } else {
+                  drawOutcome = 'both-same-refund';
+                }
+              }
+              
               return (
                 <div
                   key={bet.betId.toString()}
-                  className="border dark:border-gray-800 rounded-lg p-4 hover:border-primary dark:hover:border-primary transition-colors"
+                  className="bg-white dark:bg-gray-900 rounded-lg p-5 border dark:border-gray-800 hover:shadow-md transition-all"
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      {bet.homeTeam && bet.awayTeam ? (
-                        <>
-                          <div className="font-semibold dark:text-white">
-                            {bet.homeTeam} vs {bet.awayTeam}
-                          </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">{bet.league}</div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="font-semibold dark:text-white">Match #{bet.matchId.toString()}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {bet.isSettled ? 'Match completed' : 'Match details unavailable'}
-                          </div>
-                        </>
-                      )}
-                      {bet.kickoffTime && (
-                        <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-1">
-                          <Clock className="h-3 w-3" />
-                          {new Date(bet.kickoffTime * 1000).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-
-                    {bet.status === BetStatus.WAITING && (
-                      <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-medium rounded-full">
+                  {/* Status Badge */}
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
+                    {bet.betStatus === BetStatus.WAITING && (
+                      <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full text-sm font-medium">
                         ⏳ Waiting
                       </span>
                     )}
-                    {bet.status === BetStatus.MATCHED && !bet.isSettled && (
-                      <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-medium rounded-full">
-                        🤝 Matched
+                    {bet.betStatus === BetStatus.MATCHED && !bet.matchData?.settled && (
+                      <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+                        🔒 Matched
                       </span>
                     )}
-                    {bet.isWinner && !bet.isClaimed && (
-                      <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
+                    {isWinner === true && !bet.isClaimed && (
+                      <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
                         🏆 Won
                       </span>
                     )}
-                    {bet.isWinner && bet.isClaimed && (
-                      <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium rounded-full animate-in zoom-in duration-500">
+                    {isWinner === true && bet.isClaimed && (
+                      <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
                         ✅ Won - Claimed
                       </span>
                     )}
-                    {bet.isSettled && !bet.isWinner && (
-                      <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 text-xs font-medium rounded-full">
+                    {isWinner === false && (
+                      <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
                         ❌ Lost
+                      </span>
+                    )}
+                    {isWinner === null && bet.matchData?.settled && (
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-sm font-medium">
+                        🔄 Refund Available
+                      </span>
+                    )}
+                    
+                    {/* Private Badge */}
+                    {isPrivate && (
+                      <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium flex items-center gap-1">
+                        <Lock className="h-3 w-3" />
+                        Private
                       </span>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mb-3">
-                    <div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Your Prediction</div>
-                      <div className="font-semibold dark:text-white">{getPredictionLabel(bet.prediction)}</div>
+                  {/* Bet Info */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Prediction:</span>
+                      <span className="font-semibold dark:text-white">{getPredictionLabel(bet.prediction)}</span>
                     </div>
-                    <div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Stake</div>
-                      <div className="font-semibold dark:text-white">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Stake:</span>
+                      <span className="font-semibold dark:text-white">
                         {formatStake(bet.stake, tokenInfo.decimals)} {tokenInfo.symbol}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Draw Setting:</span>
+                      <span className="text-sm font-medium dark:text-white">
+                        {bet.allowDraw ? '✅ Allowed' : '❌ Not Allowed'}
+                      </span>
+                    </div>
+                    
+                    {/* Show opponent's draw setting if matched */}
+                    {bet.matchedBet && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Opponent Draw:</span>
+                        <span className="text-sm font-medium dark:text-white">
+                          {bet.matchedBet.allowDraw ? '✅ Allowed' : '❌ Not Allowed'}
+                        </span>
                       </div>
-                    </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t dark:border-gray-800">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Bet #{bet.betId.toString()}
+                  {/* Draw Outcome Explanation */}
+                  {drawOutcome && (
+                    <div className="mb-4 p-3 rounded-lg border text-sm">
+                      {drawOutcome === 'predicted-draw-won' && (
+                        <div className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                          <p className="text-green-900 dark:text-green-100 font-semibold">🏆 You Predicted Draw!</p>
+                          <p className="text-green-800 dark:text-green-200 text-xs mt-1">
+                            You won because you predicted DRAW correctly.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {drawOutcome === 'opponent-predicted-draw' && (
+                        <div className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+                          <p className="text-red-900 dark:text-red-100 font-semibold">❌ Opponent Predicted Draw</p>
+                          <p className="text-red-800 dark:text-red-200 text-xs mt-1">
+                            Opponent won because they predicted DRAW correctly.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {drawOutcome === 'you-allowed-won' && (
+                        <div className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+                          <p className="text-green-900 dark:text-green-100 font-semibold">🏆 You Allowed Draw!</p>
+                          <p className="text-green-800 dark:text-green-200 text-xs mt-1">
+                            You won because you allowed draw and opponent didn't.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {drawOutcome === 'opponent-allowed-won' && (
+                        <div className="bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+                          <p className="text-red-900 dark:text-red-100 font-semibold">❌ Opponent Allowed Draw</p>
+                          <p className="text-red-800 dark:text-red-200 text-xs mt-1">
+                            Opponent won because they allowed draw and you didn't.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {drawOutcome === 'both-same-refund' && (
+                        <div className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                          <p className="text-blue-900 dark:text-blue-100 font-semibold">🔄 Draw Refund</p>
+                          <p className="text-blue-800 dark:text-blue-200 text-xs mt-1">
+                            Both had same draw setting, so both get refund.
+                          </p>
+                        </div>
+                      )}
                     </div>
+                  )}
 
-                    <div className="flex gap-2">
-                      {bet.status === BetStatus.WAITING && (
-                        <button
-                          onClick={() => handleWithdrawUnmatched(bet.betId)}
-                          className="px-3 py-1.5 bg-gray-600 dark:bg-gray-700 text-white text-xs rounded hover:bg-gray-700 dark:hover:bg-gray-600 font-medium transition-colors"
-                        >
-                          Withdraw
-                        </button>
+                  {/* Claim Button */}
+                  {showClaimButton && (
+                    <button
+                      onClick={() => handleWithdrawWinnings(bet.betId, bet.stake)}
+                      disabled={isClaiming}
+                      className="w-full bg-green-600 dark:bg-green-700 text-white py-3 rounded-lg font-semibold hover:bg-green-700 dark:hover:bg-green-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isClaiming ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          <span>Claiming...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trophy className="h-5 w-5" />
+                          <span>💰 Claim Winnings</span>
+                        </>
                       )}
-                      
-                      {bet.isWinner && !bet.isClaimed && (
-                        <button
-                          onClick={() => handleWithdrawWinnings(bet.betId)}
-                          disabled={isClaiming}
-                          className="px-3 py-1.5 bg-green-600 dark:bg-green-700 text-white text-xs rounded hover:bg-green-700 dark:hover:bg-green-600 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
-                        >
-                          {isClaiming ? (
-                            <>
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              Claiming...
-                            </>
-                          ) : (
-                            <>💰 Claim Winnings</>
-                          )}
-                        </button>
-                      )}
-                      
-                      <Link
-                        href={`/match/${bet.matchId}`}
-                        className="px-3 py-1.5 bg-blue-600 dark:bg-blue-700 text-white text-xs rounded hover:bg-blue-700 dark:hover:bg-blue-600 font-medium transition-colors"
-                      >
-                        View Match
-                      </Link>
-                    </div>
-                  </div>
+                    </button>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
