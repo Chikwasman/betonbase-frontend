@@ -1,29 +1,38 @@
 import { useState } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI, TokenType } from '@/lib/contracts';
+import { useWriteContract } from 'wagmi';
+import { CONTRACTS, BET_ON_BASE_ABI, Prediction } from '@/lib/contracts';
+
+interface MatchBetParams {
+  betId: bigint;
+  allowDraw: boolean;
+  prediction: Prediction; // ✅ NEW: Required for DRAW bet matching
+}
 
 export function useMatchBet() {
   const [error, setError] = useState<string | null>(null);
   const { writeContractAsync, isPending: isLoading } = useWriteContract();
 
-  const matchBet = async (betId: bigint, allowDraw: boolean) => {  // NEW: allowDraw parameter
+  const matchBet = async ({ betId, allowDraw, prediction }: MatchBetParams) => {
     try {
       setError(null);
 
-      // For now, we'll use the simplest approach:
-      // User sends ETH to match ETH bets, or ERC20 for ERC20 bets
-      // The contract will handle stake validation
-      
+      // Validate prediction
+      if (prediction !== Prediction.HOME && prediction !== Prediction.AWAY && prediction !== Prediction.DRAW) {
+        throw new Error('Invalid prediction');
+      }
+
+      // Hidden fee in ETH
       const HIDDEN_FEE = BigInt('1000000000000000'); // 0.001 ETH
 
-      // Call contract
+      // ✅ NEW: Call contract with 3 parameters (added prediction)
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'matchBet',
         args: [
           betId,
-          allowDraw,  // NEW: Pass allowDraw parameter
+          allowDraw,
+          prediction, // ✅ NEW: Pass prediction parameter
         ],
         value: HIDDEN_FEE, // User pays hidden fee in ETH
       });

@@ -3,7 +3,7 @@
 import { useWaitingBets } from '@/hooks/useWaitingBets';
 import { useMatchBet } from '@/hooks/useMatchBet';
 import { formatStake, getPredictionLabel, formatUSD } from '@/lib/utils';
-import { TOKEN_INFO, TokenType } from '@/lib/contracts';
+import { TOKEN_INFO, Prediction } from '@/lib/contracts';
 import { TrendingUp, Loader2, Lock, Users } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import { useState } from 'react';
@@ -14,11 +14,12 @@ export function WaitingBets({ matchId }: { matchId: number }) {
   const { matchBet, isLoading: isMatching } = useMatchBet();
   const [matchingBetId, setMatchingBetId] = useState<bigint | null>(null);
   const [allowDrawMap, setAllowDrawMap] = useState<{ [key: string]: boolean }>({});
+  const [predictionMap, setPredictionMap] = useState<{ [key: string]: Prediction }>({});
 
-  const handleMatch = async (betId: bigint, allowDraw: boolean) => {
+  const handleMatch = async (betId: bigint, allowDraw: boolean, prediction: Prediction) => {
     try {
       setMatchingBetId(betId);
-      await matchBet(betId, allowDraw);
+      await matchBet({ betId, allowDraw, prediction });
       alert('Bet matched successfully!');
     } catch (error) {
       console.error('Error matching bet:', error);
@@ -32,6 +33,33 @@ export function WaitingBets({ matchId }: { matchId: number }) {
     setAllowDrawMap(prev => ({
       ...prev,
       [betId.toString()]: !prev[betId.toString()]
+    }));
+  };
+
+  const getOppositePrediction = (prediction: Prediction): Prediction => {
+    if (prediction === Prediction.HOME) return Prediction.AWAY;
+    if (prediction === Prediction.AWAY) return Prediction.HOME;
+    return Prediction.HOME;
+  };
+
+  const getMatchingPrediction = (bet: any): Prediction => {
+    const betIdStr = bet.betId.toString();
+    
+    if (predictionMap[betIdStr] !== undefined) {
+      return predictionMap[betIdStr];
+    }
+    
+    if (bet.prediction === Prediction.DRAW) {
+      return Prediction.HOME;
+    }
+    
+    return getOppositePrediction(bet.prediction);
+  };
+
+  const setPredictionForBet = (betId: bigint, prediction: Prediction) => {
+    setPredictionMap(prev => ({
+      ...prev,
+      [betId.toString()]: prediction
     }));
   };
 
@@ -55,11 +83,13 @@ export function WaitingBets({ matchId }: { matchId: number }) {
   return (
     <div className="space-y-3">
       {bets.map((bet) => {
-        const tokenInfo = TOKEN_INFO[bet.tokenType as TokenType];
+        const tokenInfo = TOKEN_INFO;
         const isPrivate = bet.targetBettor && bet.targetBettor !== '0x0000000000000000000000000000000000000000';
         const canMatch = !isPrivate || (isPrivate && address?.toLowerCase() === bet.targetBettor?.toLowerCase());
         const isMatchingThis = matchingBetId === bet.betId;
         const allowDraw = allowDrawMap[bet.betId.toString()] || false;
+        const matchingPrediction = getMatchingPrediction(bet);
+        const isDrawBet = bet.prediction === Prediction.DRAW;
         
         return (
           <div
@@ -71,7 +101,8 @@ export function WaitingBets({ matchId }: { matchId: number }) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <div className="font-semibold text-lg dark:text-white">
+                  {/* ✅ FIXED: Added text-gray-900 for light mode */}
+                  <div className="font-semibold text-lg text-gray-900 dark:text-white">
                     {getPredictionLabel(bet.prediction)}
                   </div>
                   {isPrivate && (
@@ -103,7 +134,8 @@ export function WaitingBets({ matchId }: { matchId: number }) {
               </div>
               
               <div className="text-right">
-                <div className="font-bold text-lg dark:text-white">
+                {/* ✅ FIXED: Added text-gray-900 for light mode */}
+                <div className="font-bold text-lg text-gray-900 dark:text-white">
                   {formatStake(bet.stake, tokenInfo.decimals)} {tokenInfo.symbol}
                 </div>
                 {bet.usdValue && (
@@ -113,6 +145,56 @@ export function WaitingBets({ matchId }: { matchId: number }) {
                 )}
               </div>
             </div>
+
+            {/* Prediction Selection for DRAW bets */}
+            {canMatch && isDrawBet && (
+              <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                {/* ✅ FIXED: Added text-gray-900 for light mode */}
+                <label className="block text-sm font-medium mb-2 text-gray-900 dark:text-white">
+                  Choose your prediction to match this DRAW bet:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPredictionForBet(bet.betId, Prediction.HOME)}
+                    className={`px-3 py-2 rounded border-2 text-sm font-medium transition-all ${
+                      matchingPrediction === Prediction.HOME
+                        ? 'border-primary bg-primary/10 dark:bg-primary/20 text-primary'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-900 dark:text-white'
+                    }`}
+                  >
+                    Match with HOME
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPredictionForBet(bet.betId, Prediction.AWAY)}
+                    className={`px-3 py-2 rounded border-2 text-sm font-medium transition-all ${
+                      matchingPrediction === Prediction.AWAY
+                        ? 'border-primary bg-primary/10 dark:bg-primary/20 text-primary'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 text-gray-900 dark:text-white'
+                    }`}
+                  >
+                    Match with AWAY
+                  </button>
+                </div>
+                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                  💡 You're betting against DRAW - choose HOME or AWAY
+                </p>
+              </div>
+            )}
+
+            {/* Show auto-selected prediction for non-DRAW bets */}
+            {canMatch && !isDrawBet && (
+              <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                {/* ✅ FIXED: Added text-gray-900 for light mode */}
+                <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  Your prediction: <span className="text-primary">{getPredictionLabel(matchingPrediction)}</span>
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Automatically set to opposite of waiting bet
+                </p>
+              </div>
+            )}
 
             {/* Draw Strategy Toggle */}
             {canMatch && (
@@ -124,7 +206,8 @@ export function WaitingBets({ matchId }: { matchId: number }) {
                     onChange={() => toggleAllowDraw(bet.betId)}
                     className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
                   />
-                  <span className="text-sm font-medium dark:text-white">
+                  {/* ✅ FIXED: Added text-gray-900 for light mode */}
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
                     Allow draw outcome
                   </span>
                 </label>
@@ -138,11 +221,15 @@ export function WaitingBets({ matchId }: { matchId: number }) {
 
             <div className="flex items-center justify-between pt-3 border-t dark:border-gray-700">
               <div className="text-xs text-gray-500 dark:text-gray-400">
-                Created {new Date(Number(bet.createdAt) * 1000).toLocaleDateString()}
+                {bet.createdAt && Number(bet.createdAt) > 0 ? (
+                  <>Created {new Date(Number(bet.createdAt) * 1000).toLocaleDateString()}</>
+                ) : (
+                  <>Bet ID: #{bet.betId.toString()}</>
+                )}
               </div>
 
               <button
-                onClick={() => handleMatch(bet.betId, allowDraw)}
+                onClick={() => handleMatch(bet.betId, allowDraw, matchingPrediction)}
                 disabled={!canMatch || isMatching}
                 className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >

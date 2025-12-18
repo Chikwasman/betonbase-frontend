@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract, useReadContracts, useWriteContract } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI, Prediction, BetStatus, MatchResult, TokenType, TOKEN_INFO } from '@/lib/contracts';
+import { CONTRACTS, BET_ON_BASE_ABI, Prediction, BetStatus, MatchResult, TOKEN_INFO } from '@/lib/contracts';
+// ❌ REMOVED: TokenType import
 import { Trophy, TrendingUp, Loader2, Wallet, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { formatStake, getPredictionLabel } from '@/lib/utils';
@@ -15,7 +16,7 @@ interface UserBet {
   bettor: string;
   prediction: number;
   stake: bigint;
-  tokenType: number;
+  // ❌ REMOVED: tokenType field (single token now)
   allowDraw: boolean;
   status: number;
   matchedBetId: bigint;
@@ -167,7 +168,7 @@ export function MyBets() {
 
             // Determine if user won
             const prediction = Number(result[3]);
-            const betStatus = Number(result[7]);
+            const betStatus = Number(result[6]); // ✅ UPDATED: index 6 (was 7, no tokenType field)
             const isWinner = isSettled && betStatus === BetStatus.MATCHED && (
               (matchResult === MatchResult.HOME_WIN && prediction === Prediction.HOME) ||
               (matchResult === MatchResult.AWAY_WIN && prediction === Prediction.AWAY) ||
@@ -180,11 +181,11 @@ export function MyBets() {
               bettor: result[2],
               prediction,
               stake: result[4],
-              tokenType: Number(result[5]),
-              allowDraw: result[6],
+              // ❌ REMOVED: tokenType: Number(result[5])
+              allowDraw: result[5], // ✅ UPDATED: index 5 (was 6)
               status: betStatus,
-              matchedBetId: result[8],
-              createdAt: result[9],
+              matchedBetId: result[7], // ✅ UPDATED: index 7 (was 8)
+              createdAt: result[8], // ✅ UPDATED: index 8 (was 9)
               homeTeam: matchInfo?.homeTeam,
               awayTeam: matchInfo?.awayTeam,
               league: matchInfo?.league,
@@ -365,7 +366,8 @@ export function MyBets() {
       {!loading && filteredBets.length > 0 && (
         <div className="space-y-3">
           {filteredBets.map((bet) => {
-            const tokenInfo = TOKEN_INFO[bet.tokenType as TokenType];
+            // ✅ UPDATED: Direct access (no tokenType lookup)
+            const tokenInfo = TOKEN_INFO;
 
             return (
               <div

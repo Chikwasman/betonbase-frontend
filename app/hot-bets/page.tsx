@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useReadContracts } from 'wagmi';
-import { CONTRACTS, BET_ON_BASE_ABI, Prediction, TOKEN_INFO, TokenType } from '@/lib/contracts';
+import { CONTRACTS, BET_ON_BASE_ABI, Prediction, TOKEN_INFO } from '@/lib/contracts';
+// ❌ REMOVED: TokenType
 import { TrendingUp, Clock, Users, Flame, Loader2, Filter, Lock, AlertTriangle, Info } from 'lucide-react';
 import Link from 'next/link';
 import { formatStake, getPredictionLabel } from '@/lib/utils';
@@ -15,7 +16,7 @@ interface WaitingBet {
   bettor: string;
   prediction: number;
   stake: bigint;
-  tokenType: number;
+  // ❌ REMOVED: tokenType field
   allowDraw: boolean;
   targetBettor: string;
   homeTeam: string;
@@ -111,16 +112,17 @@ export default function HotBetsPage() {
         const matchId = Number(result[1]);
         const match = matches.find(m => m.id === matchId);
         
-        if (match && result[7] === 0) { // status === WAITING
+        // ✅ UPDATED: Index 6 for status (was 7, no tokenType)
+        if (match && result[6] === 0) { // status === WAITING
           hotBets.push({
             betId,
             matchId: result[1],
             bettor: result[2],
             prediction: Number(result[3]),
             stake: result[4],
-            tokenType: Number(result[5]),
-            allowDraw: result[6],
-            targetBettor: result[10], // NEW: targetBettor field
+            // ❌ REMOVED: tokenType: Number(result[5])
+            allowDraw: result[5], // ✅ was result[6]
+            targetBettor: result[9], // ✅ was result[10]
             homeTeam: match.homeTeam,
             awayTeam: match.awayTeam,
             league: match.league,
@@ -191,9 +193,9 @@ export default function HotBetsPage() {
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border dark:border-gray-800">
             <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {loading ? '...' : new Set(hotBets.map(b => b.matchId.toString())).size}
+              {loading ? '...' : hotBets.length}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-400">Active Matches</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Total Waiting</div>
           </div>
           <div className="bg-white dark:bg-gray-900 rounded-xl p-6 border dark:border-gray-800">
             <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">
@@ -285,7 +287,8 @@ export default function HotBetsPage() {
         {!loading && !loadingDetails && filteredBets.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBets.map((bet) => {
-              const tokenInfo = TOKEN_INFO[bet.tokenType as TokenType];
+              // ✅ UPDATED: Direct access to TOKEN_INFO
+              const tokenInfo = TOKEN_INFO;
               const oppositePrediction = bet.prediction === Prediction.HOME ? 'AWAY' : 
                                          bet.prediction === Prediction.AWAY ? 'HOME' : 
                                          'HOME/AWAY';
@@ -304,11 +307,16 @@ export default function HotBetsPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <div className="text-xs text-gray-500 dark:text-gray-400">{bet.league}</div>
                       
-                      {/* Private Badge */}
-                      {isPrivate && (
+                      {/* ✅ FIXED: Private Badge - corrected logic */}
+                      {isPrivate ? (
                         <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium flex items-center gap-1">
                           <Lock className="h-3 w-3" />
                           {isForMe ? 'For You' : 'Private'}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          Public
                         </span>
                       )}
                     </div>
