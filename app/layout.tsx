@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { ClientLayout } from '@/components/ClientLayout';
+import { FarcasterProvider } from '@/components/FarcasterProvider';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -26,30 +27,40 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://www.betonbase365.xyz',
+    url: 'https://betonbase365.xyz',
     siteName: 'BetOnBase365',
     title: 'BetOnBase365 - Decentralized P2P Betting',
     description: 'Peer-to-peer football betting on Base blockchain',
     images: [
       {
-        url: '/images/logo.png',
-        width: 512,
-        height: 512,
-        alt: 'BetOnBase365 Logo',
+        url: 'https://betonbase365.xyz/api/frame/og',
+        width: 1200,
+        height: 630,
+        alt: 'BetOnBase365',
       },
     ],
   },
   
   // Twitter Card
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: 'BetOnBase365 - Decentralized P2P Betting',
     description: 'Peer-to-peer football betting on Base blockchain',
-    images: ['/images/logo.png'],
+    images: ['https://betonbase365.xyz/api/frame/og'],
   },
   
-  // PWA Manifest
-  manifest: '/manifest.json',
+  // ✅ Farcaster Frame metadata
+  other: {
+    'fc:frame': 'vNext',
+    'fc:frame:image': 'https://betonbase365.xyz/api/frame/og',
+    'fc:frame:image:aspect_ratio': '1.91:1',
+    'fc:frame:button:1': 'View Matches 🔥',
+    'fc:frame:button:1:action': 'post',
+    'fc:frame:button:2': 'Open App',
+    'fc:frame:button:2:action': 'link',
+    'fc:frame:button:2:target': 'https://betonbase365.xyz',
+    'fc:frame:post_url': 'https://betonbase365.xyz/api/frame',
+  },
 };
 
 export default function RootLayout({
@@ -59,12 +70,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Farcaster SDK */}
+        <script src="https://sdk.farcaster.xyz/v0.0.2/farcaster.js" defer></script>
+      </head>
       <body className={inter.className} suppressHydrationWarning>
-        <Providers>
-          <ClientLayout>
-            {children}
-          </ClientLayout>
-        </Providers>
+        <FarcasterProvider>
+          <Providers>
+            <ClientLayout>
+              {children}
+            </ClientLayout>
+          </Providers>
+        </FarcasterProvider>
       </body>
     </html>
   );

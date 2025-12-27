@@ -1,0 +1,35 @@
+{
+  "version": "1",
+  "name": "BetOnBase365",
+  "iconUrl": "https://betonbase365.xyz/api/frame/og",
+  "homeUrl": "https://betonbase365.xyz",
+  "subtitle": "P2P Sports Betting on Base",
+  "description": "Decentralized peer-to-peer football betting platform on Base blockchain. Bet directly against other users with zero house edge, instant settlements, and transparent smart contracts.",
+  "primaryCategory": "games",
+  "screenshotUrls": [
+    "https://betonbase365.xyz/api/frame/og"
+  ],
+  "imageUrl": "https://betonbase365.xyz/api/frame/og",
+  "heroImageUrl": "https://betonbase365.xyz/api/frame/og",
+  "splashImageUrl": "https://betonbase365.xyz/api/frame/og",
+  "splashBackgroundColor": "#0f0f1e",
+  "tags": [
+    "sports",
+    "betting",
+    "football",
+    "soccer",
+    "blockchain",
+    "base",
+    "p2p",
+    "crypto",
+    "web3",
+    "defi"
+  ],
+  "tagline": "Bet on football matches. P2P. Zero house edge.",
+  "buttonTitle": "Place Bet",
+  "ogTitle": "BetOnBase365 - P2P Sports Betting",
+  "ogDescription": "Bet directly against other users on football matches. Built on Base blockchain.",
+  "ogImageUrl": "https://betonbase365.xyz/api/frame/og",
+  "castShareUrl": "https://betonbase365.xyz",
+  "webhookUrl": "https://betonbase365.xyz/api/webhook"
+}

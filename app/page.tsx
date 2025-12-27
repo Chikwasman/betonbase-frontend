@@ -5,6 +5,7 @@ import { useReadContracts } from 'wagmi';
 import { CONTRACTS, BET_ON_BASE_ABI, Prediction } from '@/lib/contracts';
 import { MatchCard } from '@/components/MatchCard';
 import { LeagueSidebar } from '@/components/LeagueSidebar';
+import { MatchFilter } from '@/components/MatchFilter'; // ✅ ADD THIS IMPORT
 import { Search, Loader2, Flame, Star, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 
@@ -16,6 +17,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([]);
+  const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'all'>('all'); // ✅ ADD THIS STATE
 
   // Fetch matches from oracle API
   useEffect(() => {
@@ -124,6 +126,44 @@ setSelectedLeagues(leagues);
 
     return matchesSearch && matchesLeague;
   });
+
+  // ✅ ADD THESE HELPER FUNCTIONS HERE (after filteredMatches, before league handlers)
+  // Helper functions for date filtering
+  const isToday = (timestamp: number) => {
+    const matchDate = new Date(timestamp * 1000);
+    const today = new Date();
+    return (
+      matchDate.getDate() === today.getDate() &&
+      matchDate.getMonth() === today.getMonth() &&
+      matchDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const isTomorrow = (timestamp: number) => {
+    const matchDate = new Date(timestamp * 1000);
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return (
+      matchDate.getDate() === tomorrow.getDate() &&
+      matchDate.getMonth() === tomorrow.getMonth() &&
+      matchDate.getFullYear() === tomorrow.getFullYear()
+    );
+  };
+
+  // Filter matches by date
+  const dateFilteredMatches = filteredMatches.filter((match: any) => {
+    if (dateFilter === 'today') return isToday(match.kickoffTime);
+    if (dateFilter === 'tomorrow') return isTomorrow(match.kickoffTime);
+    return true; // 'all'
+  });
+
+  // Calculate counts for filter buttons
+  const filterCounts = {
+    today: filteredMatches.filter((m: any) => isToday(m.kickoffTime)).length,
+    tomorrow: filteredMatches.filter((m: any) => isTomorrow(m.kickoffTime)).length,
+    all: filteredMatches.length,
+  };
+  // ✅ END OF HELPER FUNCTIONS
 
   // League handlers
   const handleLeagueToggle = (league: string) => {
@@ -236,6 +276,15 @@ setSelectedLeagues(leagues);
             </div>
           </div>
 
+          {/* ✅ ADD DATE FILTER HERE (after search, before loading state) */}
+          {!loading && !error && (
+            <MatchFilter
+              activeFilter={dateFilter}
+              onFilterChange={setDateFilter}
+              counts={filterCounts}
+            />
+          )}
+
           {/* Loading State */}
           {loading && (
             <div className="flex items-center justify-center py-12">
@@ -261,7 +310,8 @@ setSelectedLeagues(leagues);
           {/* Match List */}
           {!loading && !error && (
             <div className="space-y-4">
-              {filteredMatches.length === 0 ? (
+              {/* ✅ CHANGE: Use dateFilteredMatches instead of filteredMatches */}
+              {dateFilteredMatches.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-600 dark:text-gray-400">
                     {searchTerm || selectedLeagues.length === 0
@@ -272,6 +322,7 @@ setSelectedLeagues(leagues);
                     <button
                       onClick={() => {
                         setSearchTerm('');
+                        setDateFilter('all'); // ✅ ADD THIS LINE
                         handleSelectAll();
                       }}
                       className="mt-4 text-primary hover:underline"
@@ -281,7 +332,7 @@ setSelectedLeagues(leagues);
                   )}
                 </div>
               ) : (
-                filteredMatches.map((match: any) => (
+                dateFilteredMatches.map((match: any) => (
                   <MatchCard key={match.id} match={match} />
                 ))
               )}
