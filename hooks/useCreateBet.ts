@@ -50,7 +50,6 @@ export function useCreateBet() {
       console.log('🔍 Checking token allowance...');
       
       // ✅ STEP 1: Check current allowance using a direct call
-      // We use writeContractAsync for the allowance check via a view function call pattern
       let currentAllowance = BigInt(0);
       
       try {
@@ -141,7 +140,12 @@ export function useCreateBet() {
       // ✅ STEP 3: Create the bet
       console.log('🎲 Creating bet...');
       
-      const HIDDEN_FEE = BigInt('1000000000000000'); // 0.001 ETH
+      // ✅ FIX M-1: Renamed from HIDDEN_FEE to PLATFORM_GAS_FEE with documentation
+      /**
+       * Platform gas fee: 0.0001 ETH
+       * This fee covers oracle gas costs for match settlement
+       */
+      const PLATFORM_GAS_FEE = BigInt('100000000000000'); // 0.0001 ETH
       
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
@@ -154,7 +158,7 @@ export function useCreateBet() {
           allowDraw,
           targetBettor,
         ],
-        value: HIDDEN_FEE,
+        value: PLATFORM_GAS_FEE, // Platform gas fee for oracle operations
       });
 
       console.log('✅ Bet created successfully! Transaction:', hash);
@@ -176,6 +180,8 @@ export function useCreateBet() {
         errorMessage = 'Match not available for betting';
       } else if (err.message?.includes('Betting closed')) {
         errorMessage = 'Betting is closed for this match';
+      } else if (err.message?.includes('Must send 0.0001 ETH platform gas fee')) {
+        errorMessage = 'Please ensure you have 0.0001 ETH for the platform gas fee';
       } else if (err.message) {
         errorMessage = err.message;
       }

@@ -5,7 +5,7 @@ import { useAccount } from 'wagmi';
 import { parseUnits } from 'viem';
 import { useCreateBet } from '@/hooks/useCreateBet';
 import { Prediction, TOKEN_INFO } from '@/lib/contracts';
-import { TrendingUp, AlertCircle, Loader2, CheckCircle } from 'lucide-react';
+import { TrendingUp, AlertCircle, Loader2, CheckCircle, Info } from 'lucide-react';
 import { DrawCheckbox } from '@/components/DrawCheckbox';
 import { PrivateBetToggle } from '@/components/PrivateBetToggle';
 import { DrawStrategyExplainer } from '@/components/DrawStrategyExplainer';
@@ -132,6 +132,20 @@ export function BetForm({ matchId, match }: BetFormProps) {
         </div>
       )}
 
+      {/* ✅ FIX M-1: Clear Platform Gas Fee Notice */}
+      <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+        <div className="flex items-start gap-3">
+          <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-amber-900 dark:text-amber-100 mb-1">Platform Gas Fee Required</p>
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              Each bet requires <strong>0.0001 ETH</strong> in addition to your stake. 
+              This fee covers the oracle's gas costs for match settlement and result verification.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Prediction Selection */}
       <div>
         <label className="block text-sm font-medium mb-3 text-gray-900 dark:text-white">Your Prediction</label>
@@ -147,7 +161,6 @@ export function BetForm({ matchId, match }: BetFormProps) {
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Home</div>
-            {/* ✅ FIXED: Added text-gray-900 for light mode */}
             <div className="font-bold truncate text-gray-900 dark:text-white">{match.homeTeam}</div>
           </button>
 
@@ -162,7 +175,6 @@ export function BetForm({ matchId, match }: BetFormProps) {
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Draw</div>
-            {/* ✅ FIXED: Added text-gray-900 for light mode */}
             <div className="font-bold text-gray-900 dark:text-white">X</div>
           </button>
 
@@ -177,7 +189,6 @@ export function BetForm({ matchId, match }: BetFormProps) {
             } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Away</div>
-            {/* ✅ FIXED: Added text-gray-900 for light mode */}
             <div className="font-bold truncate text-gray-900 dark:text-white">{match.awayTeam}</div>
           </button>
         </div>
@@ -296,11 +307,13 @@ export function BetForm({ matchId, match }: BetFormProps) {
         )}
       </button>
 
-      {/* Fee Info */}
+      {/* ✅ FIX M-1: Updated Fee Info with clearer messaging */}
       <div className="text-xs text-gray-500 dark:text-gray-400 text-center space-y-1">
-        <p>Winner pays 2.5% fee on winnings</p>
-        <p>Betting closes 15 minutes before match starts</p>
-        <p className="text-blue-600 dark:text-blue-400">All bets use {TOKEN_INFO.symbol} tokens</p>
+        <p className="font-medium text-gray-700 dark:text-gray-300">📋 Transaction Requirements:</p>
+        <p>• Stake: Your bet amount in {TOKEN_INFO.symbol}</p>
+        <p>• Platform Gas Fee: 0.0001 ETH (covers oracle settlement costs)</p>
+        <p>• Winner Fee: 2.5% deducted from winnings only</p>
+        <p className="text-blue-600 dark:text-blue-400 pt-2">Betting closes 15 minutes before kickoff</p>
         {isPrivate && <p className="text-purple-600 dark:text-purple-400 font-medium">🔒 This will be a private bet</p>}
         {isApproving && (
           <p className="text-blue-600 dark:text-blue-400 font-medium">

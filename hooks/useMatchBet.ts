@@ -4,7 +4,7 @@ import { CONTRACTS, BET_ON_BASE_ABI, ERC20_ABI, Prediction, TOKEN_INFO } from '@
 
 interface MatchBetParams {
   betId: bigint;
-  targetBetStake: bigint; // ✅ NEW: We need the waiting bet's stake
+  targetBetStake: bigint; // ✅ We need the waiting bet's stake
   allowDraw: boolean;
   prediction: Prediction;
 }
@@ -118,9 +118,14 @@ export function useMatchBet() {
       // ✅ STEP 3: Match the bet
       console.log('🎲 Matching bet...');
       
-      const HIDDEN_FEE = BigInt('1000000000000000'); // 0.001 ETH
+      // ✅ FIX M-1: Renamed from HIDDEN_FEE to PLATFORM_GAS_FEE with documentation
+      /**
+       * Platform gas fee: 0.0001 ETH
+       * This fee covers oracle gas costs for match settlement
+       */
+      const PLATFORM_GAS_FEE = BigInt('100000000000000'); // 0.0001 ETH
 
-      // ✅ Contract automatically uses targetBet's stake, we just pass betId
+      // Contract automatically uses targetBet's stake, we just pass betId
       const hash = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
@@ -130,7 +135,7 @@ export function useMatchBet() {
           allowDraw,       // Our draw preference
           prediction,      // Our prediction
         ],
-        value: HIDDEN_FEE, // Hidden fee in ETH
+        value: PLATFORM_GAS_FEE, // Platform gas fee for oracle operations
       });
 
       console.log('✅ Bet matched successfully! Transaction:', hash);
@@ -147,6 +152,8 @@ export function useMatchBet() {
         errorMessage = 'Insufficient ETH for gas fees';
       } else if (err.message?.includes('approval')) {
         errorMessage = 'Token approval failed - please try again';
+      } else if (err.message?.includes('Must send 0.0001 ETH platform gas fee')) {
+        errorMessage = 'Please ensure you have 0.0001 ETH for the platform gas fee';
       } else if (err.message) {
         errorMessage = err.message;
       }

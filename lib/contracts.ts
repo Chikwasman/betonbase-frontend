@@ -1,9 +1,9 @@
 export const CONTRACTS = {
   // ✅ UPDATE THIS with your new deployed contract address
-  BetOnBase: '0x90c8D696c2767B95C76a947A6533299D3A6Fb146' as `0x${string}`,
+  BetOnBase: '0xeee6f2BF40bFD19293eE4c34B72d45E4Aa3584B9' as `0x${string}`,
   
   // ✅ UPDATE THIS with your new ZKL token address (from deployment)
-  MockZklegend: '0xD6102900491E8ba99d5B7B1933aEb5852F5a1754' as `0x${string}`,
+  MockZklegend: '0xBF55F0852809DB4a3DDFef9374344B81165d0651' as `0x${string}`,
   
   // ❌ REMOVED: USDC, ETHUSDPriceFeed, ZKLUSDPriceFeed (not needed in simplified version)
 } as const;
