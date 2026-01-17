@@ -4,11 +4,13 @@ import './globals.css';
 import { Providers } from './providers';
 import { ClientLayout } from '@/components/ClientLayout';
 import { FarcasterProvider } from '@/components/FarcasterProvider';
+import { MobileNav } from '@/components/MobileNav';
+import { BetSlipDrawer } from '@/components/BetSlipDrawer';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'BetOnBase365 - Decentralized P2P Betting',
+  title: 'BetOnBase365 - Decentralized P2P Betting Platform',
   description: 'Peer-to-peer football betting on Base blockchain. Bet directly with other users, no house edge.',
   
   // Favicon configurations
@@ -79,6 +81,8 @@ export default function RootLayout({
           <Providers>
             <ClientLayout>
               {children}
+              <MobileNav />
+              <BetSlipDrawer />
             </ClientLayout>
           </Providers>
         </FarcasterProvider>

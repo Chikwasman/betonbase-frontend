@@ -5,8 +5,9 @@ import { useReadContracts } from 'wagmi';
 import { CONTRACTS, BET_ON_BASE_ABI, Prediction } from '@/lib/contracts';
 import { MatchCard } from '@/components/MatchCard';
 import { LeagueSidebar } from '@/components/LeagueSidebar';
-import { MatchFilter } from '@/components/MatchFilter'; // ✅ ADD THIS IMPORT
-import { Search, Loader2, Flame, Star, TrendingUp } from 'lucide-react';
+import { MatchFilter } from '@/components/MatchFilter';
+import { StatsBar } from '@/components/StatsBar';
+import { Search, Loader2, Flame, Star, TrendingUp, Filter } from 'lucide-react';
 import Link from 'next/link';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -17,7 +18,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLeagues, setSelectedLeagues] = useState<string[]>([]);
-  const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'all'>('all'); // ✅ ADD THIS STATE
+  const [dateFilter, setDateFilter] = useState<'today' | 'tomorrow' | 'all'>('all');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Fetch matches from oracle API
   useEffect(() => {
@@ -37,7 +39,7 @@ export default function Home() {
           // Auto-select all leagues on first load
           if (selectedLeagues.length === 0) {
             const leagues = [...new Set(data.matches.map((m: any) => m.league))] as string[];
-setSelectedLeagues(leagues);
+            setSelectedLeagues(leagues);
           }
         } else {
           throw new Error(data.error || 'Failed to fetch matches');
@@ -110,7 +112,7 @@ setSelectedLeagues(leagues);
     .map(m => ({ ...m, betCount: matchBetCounts.get(m.id) || 0 }))
     .filter(m => m.betCount > 0)
     .sort((a, b) => b.betCount - a.betCount)
-    .slice(0, 3);
+    .slice(0, 6);
 
   // Get star matches (upcoming, no filter)
   const starMatches = matches.slice(0, 6);
@@ -127,7 +129,6 @@ setSelectedLeagues(leagues);
     return matchesSearch && matchesLeague;
   });
 
-  // ✅ ADD THESE HELPER FUNCTIONS HERE (after filteredMatches, before league handlers)
   // Helper functions for date filtering
   const isToday = (timestamp: number) => {
     const matchDate = new Date(timestamp * 1000);
@@ -163,7 +164,6 @@ setSelectedLeagues(leagues);
     tomorrow: filteredMatches.filter((m: any) => isTomorrow(m.kickoffTime)).length,
     all: filteredMatches.length,
   };
-  // ✅ END OF HELPER FUNCTIONS
 
   // League handlers
   const handleLeagueToggle = (league: string) => {
@@ -181,172 +181,180 @@ setSelectedLeagues(leagues);
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <LeagueSidebar
-        availableLeagues={availableLeagues}
-        selectedLeagues={selectedLeagues}
-        onLeagueToggle={handleLeagueToggle}
-        onSelectAll={handleSelectAll}
-        onClearAll={handleClearAll}
-      />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Stats Bar - Traditional Betting Style */}
+      <StatsBar />
 
-      {/* Main Content */}
-      <div className="flex-1 lg:ml-0">
-        <div className="container mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2 dark:text-white">BetOnBase</h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Decentralized P2P betting on Base Sepolia
-            </p>
-          </div>
+      <div className="flex">
+        {/* Sidebar - Desktop Only */}
+        <div className="hidden lg:block">
+          <LeagueSidebar
+            availableLeagues={availableLeagues}
+            selectedLeagues={selectedLeagues}
+            onLeagueToggle={handleLeagueToggle}
+            onSelectAll={handleSelectAll}
+            onClearAll={handleClearAll}
+          />
+        </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-900 dark:text-blue-300">
-                {loading ? '...' : filteredMatches.length}
-              </div>
-              <div className="text-sm text-blue-700 dark:text-blue-400">Available Matches</div>
-            </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 p-6 rounded-xl border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-900 dark:text-green-300">$10 - $1M</div>
-              <div className="text-sm text-green-700 dark:text-green-400">Bet Limits (USD)</div>
-            </div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-900 dark:text-purple-300">2.5%</div>
-              <div className="text-sm text-purple-700 dark:text-purple-400">Winner Fee</div>
-            </div>
-          </div>
-
-          {/* Hot Matches Section */}
-          {hotMatches.length > 0 && (
-            <div className="mb-8">
+        {/* Main Content */}
+        <div className="flex-1 lg:ml-0">
+          <div className="container mx-auto px-4 py-6">
+            {/* Header - Traditional Betting Style */}
+            <div className="mb-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Flame className="h-6 w-6 text-orange-500" />
-                  <h2 className="text-2xl font-bold dark:text-white">🔥 Hot Matches</h2>
-                </div>
-                <Link
-                  href="/hot-bets"
-                  className="text-sm text-primary hover:underline flex items-center gap-1"
-                >
-                  View all bets <TrendingUp className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {hotMatches.map((match) => (
-                  <div key={match.id} className="relative">
-                    <div className="absolute -top-2 -right-2 z-10 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                      {match.betCount} bet{match.betCount !== 1 ? 's' : ''}
-                    </div>
-                    <MatchCard match={match} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Star Matches Section */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Star className="h-6 w-6 text-yellow-500" />
-              <h2 className="text-2xl font-bold dark:text-white">⭐ Featured Matches</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {starMatches.slice(0, 6).map((match) => (
-                <MatchCard key={match.id} match={match} />
-              ))}
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold mb-4 dark:text-white">All Matches</h2>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search teams..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white dark:bg-gray-900 dark:text-white"
-              />
-            </div>
-          </div>
-
-          {/* ✅ ADD DATE FILTER HERE (after search, before loading state) */}
-          {!loading && !error && (
-            <MatchFilter
-              activeFilter={dateFilter}
-              onFilterChange={setDateFilter}
-              counts={filterCounts}
-            />
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading matches...</span>
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && !loading && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center">
-              <p className="text-red-600 dark:text-red-400 mb-2">Failed to load matches</p>
-              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Match List */}
-          {!loading && !error && (
-            <div className="space-y-4">
-              {/* ✅ CHANGE: Use dateFilteredMatches instead of filteredMatches */}
-              {dateFilteredMatches.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {searchTerm || selectedLeagues.length === 0
-                      ? 'No matches found matching your filters'
-                      : 'No upcoming matches available'}
+                <div>
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent mb-1">
+                    BetOnBase
+                  </h1>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    Peer-to-Peer Sports Betting • Base Sepolia
                   </p>
-                  {(searchTerm || selectedLeagues.length === 0) && (
-                    <button
-                      onClick={() => {
-                        setSearchTerm('');
-                        setDateFilter('all'); // ✅ ADD THIS LINE
-                        handleSelectAll();
-                      }}
-                      className="mt-4 text-primary hover:underline"
-                    >
-                      Clear filters
-                    </button>
-                  )}
                 </div>
-              ) : (
-                dateFilteredMatches.map((match: any) => (
-                  <MatchCard key={match.id} match={match} />
-                ))
+                
+                {/* Mobile Filter Button */}
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden bg-green-600 text-white p-2 rounded-lg"
+                >
+                  <Filter className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Hot Matches Section - Traditional Betting Layout */}
+            {hotMatches.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-t-xl p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Flame className="h-6 w-6 text-white animate-pulse" />
+                    <h2 className="text-xl font-bold text-white">🔥 HOT MATCHES</h2>
+                  </div>
+                  <Link
+                    href="/hot-bets"
+                    className="text-sm text-white hover:underline flex items-center gap-1 bg-white/20 px-3 py-1 rounded-lg"
+                  >
+                    View All <TrendingUp className="h-4 w-4" />
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white dark:bg-gray-900 p-4 rounded-b-xl border-2 border-t-0 border-orange-200 dark:border-orange-900">
+                  {hotMatches.map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Featured Matches Section */}
+            {starMatches.length > 0 && (
+              <div className="mb-8">
+                <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 rounded-t-xl p-4 flex items-center gap-3">
+                  <Star className="h-6 w-6 text-white" />
+                  <h2 className="text-xl font-bold text-white">⭐ FEATURED MATCHES</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 bg-white dark:bg-gray-900 p-4 rounded-b-xl border-2 border-t-0 border-yellow-200 dark:border-yellow-900">
+                  {starMatches.slice(0, 6).map((match) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Search & Filter Section */}
+            <div className="mb-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  All Matches
+                </h2>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {dateFilteredMatches.length} match{dateFilteredMatches.length !== 1 ? 'es' : ''}
+                </div>
+              </div>
+
+              {/* Search Bar - Traditional Style */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search teams..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border-2 dark:border-gray-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white dark:bg-gray-900 dark:text-white text-lg"
+                />
+              </div>
+
+              {/* Date Filter */}
+              {!loading && !error && (
+                <MatchFilter
+                  activeFilter={dateFilter}
+                  onFilterChange={setDateFilter}
+                  counts={filterCounts}
+                />
               )}
             </div>
-          )}
 
-          {/* Connection Status */}
-          {!loading && !error && matches.length > 0 && (
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                ✅ Connected to oracle • {matches.length} matches loaded
-              </p>
-            </div>
-          )}
+            {/* Loading State */}
+            {loading && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="h-12 w-12 animate-spin text-green-600 mb-4" />
+                <span className="text-lg text-gray-600 dark:text-gray-400">Loading matches...</span>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-xl p-8 text-center">
+                <p className="text-red-600 dark:text-red-400 mb-2 text-lg font-semibold">Failed to load matches</p>
+                <p className="text-sm text-red-500 dark:text-red-400 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Match List - Grid Layout */}
+            {!loading && !error && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dateFilteredMatches.length === 0 ? (
+                  <div className="col-span-full text-center py-20">
+                    <p className="text-gray-600 dark:text-gray-400 text-lg mb-4">
+                      {searchTerm || selectedLeagues.length === 0
+                        ? 'No matches found matching your filters'
+                        : 'No upcoming matches available'}
+                    </p>
+                    {(searchTerm || selectedLeagues.length === 0) && (
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setDateFilter('all');
+                          handleSelectAll();
+                        }}
+                        className="text-green-600 dark:text-green-400 hover:underline font-semibold"
+                      >
+                        Clear all filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  dateFilteredMatches.map((match: any) => (
+                    <MatchCard key={match.id} match={match} />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Connection Status */}
+            {!loading && !error && matches.length > 0 && (
+              <div className="mt-8 text-center py-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-400 font-medium">
+                  ✅ Connected to oracle • {matches.length} matches loaded • Updates every 5 minutes
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

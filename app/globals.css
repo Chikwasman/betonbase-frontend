@@ -1,3 +1,317 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================
+   BETONBASE - TRADITIONAL BETTING PLATFORM STYLES
+   ============================================ */
+
+@layer base {
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Dark mode base colors */
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+
+  body {
+    @apply bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100;
+  }
+}
+
+@layer components {
+  /* ============================================
+     CUSTOM ANIMATIONS
+     ============================================ */
+
+  /* Marquee for ticker */
+  @keyframes marquee {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 20s linear infinite;
+  }
+
+  /* Pulse for live indicators */
+  @keyframes pulse-green {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+
+  .animate-pulse-green {
+    animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Shimmer loading effect */
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* ============================================
+     BETTING PLATFORM BUTTONS
+     ============================================ */
+
+  /* Primary CTA Button */
+  .btn-betting {
+    @apply bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 
+           text-white font-bold py-3 px-6 rounded-lg transition-all duration-200 
+           shadow-betting hover:shadow-betting-lg active:scale-95;
+  }
+
+  /* Secondary Button */
+  .btn-betting-secondary {
+    @apply bg-white dark:bg-gray-800 border-2 border-green-600 dark:border-green-500 
+           text-green-600 dark:text-green-400 font-bold py-3 px-6 rounded-lg 
+           hover:bg-green-50 dark:hover:bg-gray-700 transition-all duration-200;
+  }
+
+  /* Danger Button */
+  .btn-betting-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg 
+           transition-all duration-200 active:scale-95;
+  }
+
+  /* ============================================
+     CARD STYLES
+     ============================================ */
+
+  /* Match Card Base */
+  .card-match {
+    @apply bg-white dark:bg-gray-900 border-2 dark:border-gray-800 rounded-xl 
+           transition-all duration-300 hover:shadow-card-hover 
+           hover:border-green-500 dark:hover:border-green-600 hover:-translate-y-1;
+  }
+
+  /* Hot Match Card */
+  .card-match-hot {
+    @apply card-match border-orange-200 dark:border-orange-900 
+           shadow-hot hover:shadow-xl;
+  }
+
+  /* ============================================
+     BADGE STYLES
+     ============================================ */
+
+  /* Live Badge */
+  .badge-live {
+    @apply px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-full 
+           flex items-center gap-1;
+  }
+
+  /* Hot Badge */
+  .badge-hot {
+    @apply px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white 
+           text-xs font-bold rounded-full animate-pulse;
+  }
+
+  /* Private Badge */
+  .badge-private {
+    @apply px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-700 
+           dark:text-purple-300 text-xs font-semibold rounded flex items-center gap-1;
+  }
+
+  /* ============================================
+     PREDICTION COLORS
+     ============================================ */
+
+  .prediction-home {
+    @apply text-blue-600 dark:text-blue-400 font-bold;
+  }
+
+  .prediction-away {
+    @apply text-red-600 dark:text-red-400 font-bold;
+  }
+
+  .prediction-draw {
+    @apply text-gray-600 dark:text-gray-400 font-bold;
+  }
+
+  /* ============================================
+     MARKET SECTIONS
+     ============================================ */
+
+  .market-section-home {
+    @apply bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg;
+  }
+
+  .market-section-away {
+    @apply bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg;
+  }
+
+  .market-section-draw {
+    @apply bg-gray-50 dark:bg-gray-900/20 border-2 border-gray-200 dark:border-gray-800 rounded-lg;
+  }
+
+  /* ============================================
+     LOADING SKELETONS
+     ============================================ */
+
+  .skeleton {
+    @apply bg-gray-200 dark:bg-gray-800 animate-pulse rounded;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-3/4;
+  }
+
+  .skeleton-card {
+    @apply skeleton h-48 w-full rounded-xl;
+  }
+
+  /* ============================================
+     SCROLLBAR STYLING
+     ============================================ */
+
+  /* Custom Scrollbar */
+  .scrollbar-betting {
+    scrollbar-width: thin;
+    scrollbar-color: #16a34a #f1f5f9;
+  }
+
+  .scrollbar-betting::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-betting::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-900;
+  }
+
+  .scrollbar-betting::-webkit-scrollbar-thumb {
+    @apply bg-green-600 dark:bg-green-500 rounded-full;
+  }
+
+  .scrollbar-betting::-webkit-scrollbar-thumb:hover {
+    @apply bg-green-700 dark:bg-green-600;
+  }
+
+  /* ============================================
+     STATS TICKER
+     ============================================ */
+
+  .stats-ticker {
+    @apply bg-gradient-to-r from-gray-900 to-gray-800 dark:from-gray-800 dark:to-gray-900 
+           text-white py-3 overflow-hidden;
+  }
+
+  /* ============================================
+     MOBILE OPTIMIZATIONS
+     ============================================ */
+
+  /* Touch-friendly buttons */
+  @media (max-width: 768px) {
+    .btn-betting,
+    .btn-betting-secondary,
+    .btn-betting-danger {
+      @apply min-h-[44px]; /* Minimum touch target */
+    }
+  }
+
+  /* Bottom Navigation Spacing */
+  .mobile-content-spacing {
+    @apply pb-20 lg:pb-0; /* Space for bottom nav on mobile */
+  }
+
+  /* ============================================
+     UTILITY CLASSES
+     ============================================ */
+
+  /* Gradient Text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent;
+  }
+
+  /* Gradient Background */
+  .gradient-betting {
+    @apply bg-gradient-to-r from-green-600 to-green-700;
+  }
+
+  /* Glass Effect */
+  .glass-effect {
+    @apply backdrop-blur-md bg-white/80 dark:bg-gray-900/80;
+  }
+
+  /* ============================================
+     FOCUS STYLES FOR ACCESSIBILITY
+     ============================================ */
+
+  /* Enhanced focus for keyboard navigation */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-green-500 ring-offset-2 dark:ring-offset-gray-900;
+  }
+
+  /* ============================================
+     DARK MODE TRANSITIONS
+     ============================================ */
+
+  /* Smooth dark mode transitions */
+  * {
+    @apply transition-colors duration-200;
+  }
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  /* Hide interactive elements when printing */
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure content is readable */
+  body {
+    @apply bg-white text-black;
+  }
+}
+
+/* ============================================
+   RESPONSIVE FONT SIZES
+   ============================================ */
+
+@layer utilities {
+  /* Responsive text sizing */
+  .text-responsive {
+    @apply text-base md:text-lg lg:text-xl;
+  }
+
+  .heading-responsive {
+    @apply text-2xl md:text-3xl lg:text-4xl;
+  }
+}
