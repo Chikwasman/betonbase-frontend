@@ -3,10 +3,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract, useReadContracts, useWriteContract } from 'wagmi';
 import { CONTRACTS, BET_ON_BASE_ABI, Prediction, BetStatus, MatchResult, TOKEN_INFO } from '@/lib/contracts';
-// ❌ REMOVED: TokenType import
-import { Trophy, TrendingUp, Loader2, Wallet, Clock } from 'lucide-react';
+import { Trophy, TrendingUp, Loader2, Wallet, Clock, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatStake, getPredictionLabel } from '@/lib/utils';
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.betonbase365.xyz';
 
@@ -16,7 +16,6 @@ interface UserBet {
   bettor: string;
   prediction: number;
   stake: bigint;
-  // ❌ REMOVED: tokenType field (single token now)
   allowDraw: boolean;
   status: number;
   matchedBetId: bigint;
@@ -37,6 +36,7 @@ export function MyBets() {
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingBetId, setCancellingBetId] = useState<bigint | null>(null);
 
   const { writeContractAsync } = useWriteContract();
 
@@ -267,6 +267,59 @@ export function MyBets() {
     }
   };
 
+    // Cancel waiting bet
+  const handleCancelBet = async (betId: bigint, kickoffTime?: number) => {
+    // Check if we can cancel (must be >15 min before kickoff)
+    if (kickoffTime) {
+      const now = Math.floor(Date.now() / 1000);
+      const BETTING_CUTOFF = 15 * 60; // 15 minutes
+      const timeUntilKickoff = kickoffTime - now;
+      
+      if (timeUntilKickoff < BETTING_CUTOFF) {
+        const minutesLeft = Math.floor(timeUntilKickoff / 60);
+        alert(`❌ Cannot cancel: Too close to kickoff (${minutesLeft} min left).\n\nYou need at least 15 minutes before match starts.\n\n💡 You can withdraw this bet after the match starts + 15 minutes.`);
+        return;
+      }
+    }
+
+    if (!confirm('Cancel this bet and get your full stake back?')) {
+      return;
+    }
+
+    try {
+      setCancellingBetId(betId);
+
+      await writeContractAsync({
+        address: CONTRACTS.BetOnBase,
+        abi: BET_ON_BASE_ABI,
+        functionName: 'cancelWaitingBet',
+        args: [betId],
+      } as any);
+
+      alert('✅ Bet cancelled successfully! Your stake has been refunded.');
+      
+      // Refresh bets
+      await refetchBets();
+      
+    } catch (error: any) {
+      console.error('Error cancelling bet:', error);
+      
+      let errorMessage = 'Failed to cancel bet';
+      
+      if (error.message?.includes('Too close to kickoff')) {
+        errorMessage = 'Cannot cancel: Too close to match start (need 15 min buffer)\n\n💡 Withdraw after match starts + 15 min instead.';
+      } else if (error.message?.includes('Bet not waiting')) {
+        errorMessage = 'Cannot cancel: Bet already matched';
+      } else if (error.message?.includes('Not your bet')) {
+        errorMessage = 'Cannot cancel: Not your bet';
+      }
+      
+      alert('❌ ' + errorMessage);
+    } finally {
+      setCancellingBetId(null);
+    }
+  };
+
   if (!isConnected) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border dark:border-gray-800">
@@ -372,7 +425,11 @@ export function MyBets() {
             return (
               <div
                 key={bet.betId.toString()}
-                className="border dark:border-gray-800 rounded-lg p-4 hover:border-primary dark:hover:border-primary transition-colors"
+                className={`border dark:border-gray-800 rounded-lg p-4 transition-colors ${
+                  bet.status === BetStatus.REFUNDED
+                    ? 'opacity-50 hover:opacity-75 bg-gray-50 dark:bg-gray-900/50'
+                    : 'hover:border-primary dark:hover:border-primary'
+                }`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
@@ -420,6 +477,11 @@ export function MyBets() {
                       ❌ Lost
                     </span>
                   )}
+                  {bet.status === BetStatus.REFUNDED && (
+                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-full">
+                      🚫 Cancelled
+                    </span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-3">
@@ -441,15 +503,46 @@ export function MyBets() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    {bet.status === BetStatus.WAITING && (
-                      <button
-                        onClick={() => handleWithdrawUnmatched(bet.betId)}
-                        className="px-3 py-1.5 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 font-medium"
-                      >
-                        Withdraw
-                      </button>
-                    )}
+                  {bet.status !== BetStatus.REFUNDED && (
+                <div className="flex gap-2">
+                  {bet.status === BetStatus.WAITING && (() => {
+                    const now = Math.floor(Date.now() / 1000);
+                    const BETTING_CUTOFF = 15 * 60;
+                    const kickoffTime = bet.kickoffTime || 0;
+                    const canCancel = kickoffTime > 0 && (now + BETTING_CUTOFF) < kickoffTime;
+                    const isCancelling = cancellingBetId === bet.betId;
+                    
+                    return (
+                      <>
+                        {canCancel ? (
+                          <button
+                            onClick={() => handleCancelBet(bet.betId, bet.kickoffTime)}
+                            disabled={isCancelling}
+                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white text-xs rounded font-medium flex items-center gap-1"
+                          >
+                            {isCancelling ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              <>
+                                <X className="h-3 w-3" />
+                                Cancel Bet
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleWithdrawUnmatched(bet.betId)}
+                            className="px-3 py-1.5 bg-gray-600 text-white text-xs rounded hover:bg-gray-700 font-medium"
+                          >
+                            Withdraw (After Match)
+                          </button>
+                        )}
+                      </>
+                    );
+                  })()}
                     
                     {bet.isWinner && (
                       <button
@@ -467,7 +560,8 @@ export function MyBets() {
                       View Match
                     </Link>
                   </div>
-                </div>
+                  )}
+                  </div>
               </div>
             );
           })}

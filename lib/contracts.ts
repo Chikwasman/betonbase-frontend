@@ -119,7 +119,7 @@ export const BET_ON_BASE_ABI = [
   },
   {
     "inputs": [],
-    "name": "HIDDEN_FEE",
+    "name": "PLATFORM_GAS_FEE",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
@@ -254,6 +254,32 @@ export const BET_ON_BASE_ABI = [
     ],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    name: 'cancelWaitingBet',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: '_betId',
+        type: 'uint256',
+        internalType: 'uint256'
+      }
+    ],
+    outputs: []
+  },
+  {
+    name: 'withdrawUnmatched',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: '_betId',
+        type: 'uint256',
+        internalType: 'uint256'
+      }
+    ],
+    outputs: []
   },
   {
     "inputs": [],
@@ -425,8 +451,6 @@ export enum Prediction {
   AWAY = 1,
   DRAW = 2,
 }
-
-// ❌ REMOVED: TokenType enum (single token system now)
 
 // ✅ BetStatus enum (unchanged)
 export enum BetStatus {

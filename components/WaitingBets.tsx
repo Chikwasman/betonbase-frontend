@@ -295,18 +295,54 @@ export function WaitingBets({ matchId }: { matchId: number }) {
                           </div>
                         </div>
 
-                        {/* Allow Draw Checkbox */}
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={allowDraw}
-                            onChange={() => toggleAllowDraw(bet.betId)}
-                            className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            Allow draw (refund if match draws)
-                          </span>
-                        </label>
+                        {/* Allow Draw Checkbox with Smart Messaging */}
+                        <div className="mb-3">
+                          {bet.prediction === Prediction.DRAW ? (
+                            // CASE 3: Creator bet DRAW - NO draw option for matcher
+                            <div className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 opacity-75">
+                              <div className="flex items-center gap-2">
+                                <Info className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  Creator predicted DRAW. You can bet on HOME or AWAY
+                                </span>
+                              </div>
+                            </div>
+                          ) : !bet.allowDraw ? (
+                            // CASE 1: OPPORTUNITY - Creator didn't allow draw (HOME/AWAY bet)
+                            <label className="flex items-start gap-3 cursor-pointer bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-2 border-green-400 dark:border-green-600 rounded-lg p-3 hover:shadow-lg transition-all">
+                              <input
+                                type="checkbox"
+                                checked={allowDraw}
+                                onChange={() => toggleAllowDraw(bet.betId)}
+                                className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-0.5 flex-shrink-0"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                  <span className="text-sm font-bold text-green-900 dark:text-green-100">
+                                    ✨ 2X WINNING POTENTIAL!
+                                  </span>
+                                </div>
+                                <p className="text-xs text-green-800 dark:text-green-200">
+                                  They have 1 way to win, you get 2. Tick draw to activate! 💰
+                                </p>
+                              </div>
+                            </label>
+                          ) : (
+                            // CASE 2: Creator allowed draw (HOME/AWAY bet) - standard refund
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={allowDraw}
+                                onChange={() => toggleAllowDraw(bet.betId)}
+                                className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                              />
+                              <span className="text-sm text-gray-700 dark:text-gray-300">
+                                Allow draw (both refunded if match draws)
+                              </span>
+                            </label>
+                          )}
+                        </div>
 
                         {/* Match Button - Traditional Betting Style */}
                         <button
