@@ -5,7 +5,6 @@ import { Providers } from './providers';
 import { ClientLayout } from '@/components/ClientLayout';
 import { FarcasterProvider } from '@/components/FarcasterProvider';
 import { MobileNav } from '@/components/MobileNav';
-import { BetSlipDrawer } from '@/components/BetSlipDrawer';
 import { BetaDisclaimer } from '@/components/BetaDisclaimer';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -86,7 +85,6 @@ export default function RootLayout({
             <ClientLayout>
               {children}
               <MobileNav />
-              <BetSlipDrawer />
             </ClientLayout>
           </Providers>
         </FarcasterProvider>
