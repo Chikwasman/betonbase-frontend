@@ -13,8 +13,8 @@ export function MobileNav() {
     {
       icon: Home,
       label: 'Home',
-      href: '/my-bets',
-      active: pathname === '/my-bets',
+      href: '/',
+      active: pathname === '/',
     },
     {
       icon: TrendingUp,
@@ -32,8 +32,8 @@ export function MobileNav() {
     {
       icon: User,
       label: 'Account',
-      href: '/account',
-      active: pathname === '/account',
+      href: '/my-bets',
+      active: pathname === '/my-bets',
     },
   ];
 
