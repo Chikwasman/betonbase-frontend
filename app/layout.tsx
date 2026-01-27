@@ -6,6 +6,7 @@ import { ClientLayout } from '@/components/ClientLayout';
 import { FarcasterProvider } from '@/components/FarcasterProvider';
 import { MobileNav } from '@/components/MobileNav';
 import { BetSlipDrawer } from '@/components/BetSlipDrawer';
+import { BetaDisclaimer } from '@/components/BetaDisclaimer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -77,6 +78,9 @@ export default function RootLayout({
         <script src="https://sdk.farcaster.xyz/v0.0.2/farcaster.js" defer></script>
       </head>
       <body className={inter.className} suppressHydrationWarning>
+        {/* Beta Disclaimer - Shows once on first visit */}
+        <BetaDisclaimer />
+        
         <FarcasterProvider>
           <Providers>
             <ClientLayout>

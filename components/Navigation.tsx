@@ -8,6 +8,7 @@ import { Home, ListChecks, Flame, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/ThemeProvider';
 import { useState, useEffect } from 'react';
+import { SocialLinks } from '@/components/SocialLinks';
 
 const navItems = [
   { href: '/', label: 'Matches', icon: Home },
@@ -91,7 +92,10 @@ export function Navigation() {
                 );
               })}
             </div>
-            <ConnectButton />
+            <div className="flex items-center gap-3">
+              <SocialLinks />
+              <ConnectButton />
+            </div>
           </div>
         </div>
       </nav>
@@ -139,8 +143,11 @@ export function Navigation() {
             })}
           </div>
 
-          {/* Right Side - Dark Mode + Wallet */}
+          {/* Right Side - Social + Dark Mode + Wallet */}
           <div className="flex items-center gap-3">
+            {/* Social Links */}
+            <SocialLinks />
+
             {/* Dark Mode Toggle */}
             <button
               onClick={toggleTheme}
