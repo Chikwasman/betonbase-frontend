@@ -6,6 +6,7 @@ import { CONTRACTS, BET_ON_BASE_ABI, Prediction, BetStatus, MatchResult, TOKEN_I
 import { Trophy, TrendingUp, Loader2, Wallet, Clock, X } from 'lucide-react';
 import Link from 'next/link';
 import { formatStake, getPredictionLabel } from '@/lib/utils';
+import { WinCelebration } from '@/components/WinCelebration';
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.betonbase365.xyz';
@@ -37,6 +38,9 @@ export function MyBets() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancellingBetId, setCancellingBetId] = useState<bigint | null>(null);
+  const [claimingBetId, setClaimingBetId] = useState<bigint | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [winAmount, setWinAmount] = useState<string>('');
 
   const { writeContractAsync } = useWriteContract();
 
@@ -169,7 +173,7 @@ export function MyBets() {
             // Determine if user won
             const prediction = Number(result[3]);
             const betStatus = Number(result[6]); // ✅ UPDATED: index 6 (was 7, no tokenType field)
-            const isWinner = isSettled && betStatus === BetStatus.MATCHED && (
+            const isWinner = isSettled && (betStatus === BetStatus.MATCHED || betStatus === BetStatus.SETTLED) && (
               (matchResult === MatchResult.HOME_WIN && prediction === Prediction.HOME) ||
               (matchResult === MatchResult.AWAY_WIN && prediction === Prediction.AWAY) ||
               (matchResult === MatchResult.DRAW && prediction === Prediction.DRAW)
@@ -249,21 +253,41 @@ export function MyBets() {
   // Handle withdraw winnings
   const handleWithdrawWinnings = async (betId: bigint) => {
     try {
-      await writeContractAsync({
+      // Set claiming state
+      setClaimingBetId(betId);
+
+      // Find the bet to get stake amount
+      const bet = sortedBets.find(b => b.betId === betId);
+      const totalPot = bet ? bet.stake * BigInt(2) : BigInt(0);
+      const winnerFee = totalPot * BigInt(5) / BigInt(100); // 5% fee
+      const winnings = totalPot - winnerFee;
+
+      const tx = await writeContractAsync({
         address: CONTRACTS.BetOnBase,
         abi: BET_ON_BASE_ABI,
         functionName: 'withdrawWinnings',
         args: [betId],
       });
-      
-      // Refresh bets after claiming
+
+      // Wait for transaction to be confirmed (small delay)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Show celebration with amount
+      const tokenInfo = TOKEN_INFO;
+      const winAmountFormatted = formatStake(winnings, tokenInfo.decimals) + ' ' + tokenInfo.symbol;
+      setWinAmount(winAmountFormatted);
+      setShowCelebration(true);
+
+      // Refresh bets after a small delay to ensure blockchain state updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await refetchBetIds();
       await refetchBets();
-      
-      alert('🎉 Winnings claimed successfully!');
+
     } catch (error: any) {
       console.error('Error claiming winnings:', error);
-      alert(error.message || 'Failed to claim winnings');
+      alert('❌ ' + (error.message || 'Failed to claim winnings'));
+    } finally {
+      setClaimingBetId(null);
     }
   };
 
@@ -467,7 +491,12 @@ export function MyBets() {
                       🤝 Matched
                     </span>
                   )}
-                  {bet.isWinner && (
+                  {bet.isWinner && bet.status !== BetStatus.SETTLED && (
+                    <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300 text-xs font-medium rounded-full animate-pulse">
+                      🏆 Winner - Claim!
+                    </span>
+                  )}
+                  {bet.isWinner && bet.status === BetStatus.SETTLED && (
                     <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-medium rounded-full">
                       🏆 Won
                     </span>
@@ -544,12 +573,22 @@ export function MyBets() {
                     );
                   })()}
                     
-                    {bet.isWinner && (
+                    {bet.isWinner && bet.status !== BetStatus.SETTLED && (
                       <button
                         onClick={() => handleWithdrawWinnings(bet.betId)}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs rounded hover:bg-green-700 font-medium"
+                        disabled={claimingBetId === bet.betId}
+                        className="px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xs rounded font-medium flex items-center gap-1"
                       >
-                        💰 Claim Winnings
+                        {claimingBetId === bet.betId ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Claiming...
+                          </>
+                        ) : (
+                          <>
+                            💰 Claim Winnings
+                          </>
+                        )}
                       </button>
                     )}
                     
@@ -567,6 +606,12 @@ export function MyBets() {
           })}
         </div>
       )}
+      {/* Win Celebration */}
+      <WinCelebration
+        show={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+        amount={winAmount}
+      />
     </div>
   );
 }
